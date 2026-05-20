@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { getRoleHomePath } from "@/lib/auth/paths"
 import { getSessionProfile } from "@/lib/auth/session"
 import { SITE_NAME } from "@/lib/constants"
@@ -26,8 +26,8 @@ export default async function Home() {
           по учётной записи, выданной администратором.
         </p>
         <div className="mt-8">
-          <Link href="/login">
-            <Button>Войти</Button>
+          <Link href="/login" className={buttonVariants()}>
+            Войти
           </Link>
         </div>
       </main>

@@ -20,7 +20,7 @@ import type { ProfileBrief } from "@/lib/schedule/types"
 import type { StudentTeacherRow } from "@/lib/users/types"
 
 const selectClassName = cn(
-  "flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm",
+  "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm",
   "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none",
   "disabled:pointer-events-none disabled:opacity-50"
 )
@@ -54,6 +54,9 @@ export const AssignmentsManager = ({
   }
 
   const handleRemove = (assignmentId: string) => {
+    if (!window.confirm("Удалить привязку ученика и преподавателя?")) {
+      return
+    }
     const fd = new FormData()
     fd.set("assignment_id", assignmentId)
     startTransition(async () => {

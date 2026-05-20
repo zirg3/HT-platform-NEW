@@ -53,7 +53,9 @@ export const WeekDatePicker = ({ weekStart, pathname }: WeekDatePickerProps) => 
         tabIndex={0}
       >
         <CalendarDays className="size-4 shrink-0" aria-hidden />
-        <span>{formatWeekRangeLabel(weekStart)}</span>
+        <span className="max-w-[12rem] truncate sm:max-w-none">
+          {formatWeekRangeLabel(weekStart)}
+        </span>
       </Button>
       <input
         ref={inputRef}

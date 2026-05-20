@@ -15,11 +15,6 @@ supabase db push
 | 3 | `migrations/20260517130100_staff_lesson_insert.sql` |
 | 4 | `migrations/20260520120000_lesson_meeting_url.sql` — `meeting_url` для онлайн-подключения |
 
-## Уже существующая БД
-
-Если раньше накатывали старый `initial` **без** хелперов `can_view_lesson` и видите `42P17` на `/admin` — один раз выполните в SQL Editor содержимое из git-истории файла `20260517140000_fix_rls_lessons_recursion.sql` (удалён из репо после слияния в `initial`).
-
-Либо **Reset database** и накатите три файла выше заново.
 
 ## Первый администратор
 
@@ -30,3 +25,14 @@ supabase db push
 ## Переменные окружения
 
 Скопируйте `apps/web/.env.example` в `.env.local` и заполните ключи проекта.
+
+- `NEXT_PUBLIC_SITE_URL` — публичный URL приложения (для ссылки восстановления пароля).
+
+## Восстановление пароля (Auth)
+
+**Authentication → URL Configuration → Redirect URLs** 
+
+```
+http://localhost:3000/auth/callback?next=/login/reset-password
+```
+

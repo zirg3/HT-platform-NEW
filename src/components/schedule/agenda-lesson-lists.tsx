@@ -1,3 +1,5 @@
+"use client"
+
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -10,6 +12,7 @@ import { formatCancellationSummary } from "@/lib/schedule/cancel-info"
 import { formatLessonDateTime } from "@/lib/schedule/dates"
 import { safeLessonMeetingHref } from "@/lib/schedule/meeting-link"
 import type { LessonRow } from "@/lib/schedule/types"
+import { cn } from "@/lib/utils"
 
 type AgendaLessonListsProps = {
   upcoming: LessonRow[]
@@ -18,6 +21,7 @@ type AgendaLessonListsProps = {
   emptyHint?: string
   /** "student" — в строке показывать преподавателя; "teacher" — ученика */
   context: "student" | "teacher"
+  onSelectLesson?: (lesson: LessonRow) => void
 }
 
 const statusLabel = (lesson: LessonRow) => {
@@ -46,9 +50,11 @@ const counterpartyLine = (lesson: LessonRow, context: "student" | "teacher") => 
 const LessonStack = ({
   lessons,
   context,
+  onSelectLesson,
 }: {
   lessons: LessonRow[]
   context: "student" | "teacher"
+  onSelectLesson?: (lesson: LessonRow) => void
 }) => {
   if (lessons.length === 0) {
     return <p className="text-sm text-muted-foreground">Пока пусто</p>
@@ -59,11 +65,8 @@ const LessonStack = ({
       {lessons.map((lesson) => {
         const counterparty = counterpartyLine(lesson, context)
         const href = safeLessonMeetingHref(lesson.meeting_url)
-        return (
-          <li
-            key={lesson.id}
-            className="rounded-lg border border-border px-3 py-2 text-sm"
-          >
+        const content = (
+          <>
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium">
                 {formatLessonDateTime(lesson.starts_at)}
@@ -96,16 +99,44 @@ const LessonStack = ({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary underline underline-offset-2"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     Ссылка на урок
                   </a>
                 ) : (
-                  <span className="text-muted-foreground break-all">
+                  <span className="break-all text-muted-foreground">
                     {lesson.meeting_url}
                   </span>
                 )}
               </p>
             ) : null}
+          </>
+        )
+
+        if (onSelectLesson) {
+          return (
+            <li key={lesson.id}>
+              <button
+                type="button"
+                onClick={() => onSelectLesson(lesson)}
+                className={cn(
+                  "w-full rounded-lg border border-border px-3 py-2 text-left text-sm transition-colors",
+                  "hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                )}
+                aria-label={`Открыть урок ${lesson.courses?.title ?? ""}, ${formatLessonDateTime(lesson.starts_at)}`}
+              >
+                {content}
+              </button>
+            </li>
+          )
+        }
+
+        return (
+          <li
+            key={lesson.id}
+            className="rounded-lg border border-border px-3 py-2 text-sm"
+          >
+            {content}
           </li>
         )
       })}
@@ -119,6 +150,7 @@ export const AgendaLessonLists = ({
   subtitle,
   emptyHint,
   context,
+  onSelectLesson,
 }: AgendaLessonListsProps) => (
   <div className="space-y-6">
     {subtitle ? (
@@ -134,7 +166,11 @@ export const AgendaLessonLists = ({
           <CardDescription>Ближайшие занятия</CardDescription>
         </CardHeader>
         <CardContent>
-          <LessonStack lessons={upcoming} context={context} />
+          <LessonStack
+            lessons={upcoming}
+            context={context}
+            onSelectLesson={onSelectLesson}
+          />
         </CardContent>
       </Card>
       <Card>
@@ -143,7 +179,11 @@ export const AgendaLessonLists = ({
           <CardDescription>История занятий</CardDescription>
         </CardHeader>
         <CardContent>
-          <LessonStack lessons={past} context={context} />
+          <LessonStack
+            lessons={past}
+            context={context}
+            onSelectLesson={onSelectLesson}
+          />
         </CardContent>
       </Card>
     </div>

@@ -1,31 +1,45 @@
-import { AgendaLessonLists } from "@/components/schedule/agenda-lesson-lists"
+import { AgendaWithDialog } from "@/components/schedule/agenda-with-dialog"
 import type { Profile } from "@/lib/auth/session"
-import { splitLessonsByNow } from "@/lib/schedule/agenda"
 import { fetchAgendaLessonsForLk } from "@/lib/schedule/queries"
+import type {
+  CourseRow,
+  ProfileBrief,
+  SchedulePermissions,
+} from "@/lib/schedule/types"
 
 type AgendaSectionProps = {
   profile: Profile
+  week: string
+  courses: CourseRow[]
+  students: ProfileBrief[]
+  teachers: ProfileBrief[]
+  permissions: SchedulePermissions
 }
 
-export const AgendaSection = async ({ profile }: AgendaSectionProps) => {
+export const AgendaSection = async ({
+  profile,
+  week,
+  courses,
+  students,
+  teachers,
+  permissions,
+}: AgendaSectionProps) => {
   if (profile.role !== "student" && profile.role !== "teacher") {
     return null
   }
 
   const lessons = await fetchAgendaLessonsForLk(profile.id, profile.role)
-  const { upcoming, past } = splitLessonsByNow(lessons)
 
   return (
-    <section className="space-y-3" aria-labelledby="agenda-heading">
-      <h2 id="agenda-heading" className="text-lg font-semibold">
-        Мои занятия
-      </h2>
-      <AgendaLessonLists
-        upcoming={upcoming}
-        past={past}
-        context={profile.role}
-        emptyHint="Окно списка: −90…+180 дней от сегодня (полный календарь — выше)."
-      />
-    </section>
+    <AgendaWithDialog
+      lessons={lessons}
+      week={week}
+      courses={courses}
+      students={students}
+      teachers={teachers}
+      permissions={permissions}
+      profileId={profile.id}
+      context={profile.role}
+    />
   )
 }

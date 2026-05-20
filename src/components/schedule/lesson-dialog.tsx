@@ -1,7 +1,7 @@
 "use client"
 
 import { addWeeks, format, parseISO } from "date-fns"
-import { useEffect, useMemo, useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import {
   cancelLessonAction,
   completeLessonAction,
@@ -180,12 +180,13 @@ export const LessonDialog = ({
     })
   }
 
-  useEffect(() => {
-    if (open) {
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
       setMessage({})
       setWeeklyRepeat(false)
     }
-  }, [open, lesson?.id])
+    onOpenChange(nextOpen)
+  }
 
   const defaultTeacher =
     lesson?.teacher_id ?? permissions.teacherId ?? teachers[0]?.id ?? ""
@@ -194,7 +195,7 @@ export const LessonDialog = ({
   const defaultCourse = lesson?.course_id ?? courses[0]?.id ?? ""
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto bg-background sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Урок" : "Новый урок"}</DialogTitle>
@@ -254,7 +255,7 @@ export const LessonDialog = ({
         ) : null}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="date">Дата</Label>
               <Input
@@ -415,7 +416,7 @@ export const LessonDialog = ({
           </div>
           {canSave ? (
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" disabled={isPending} aria-busy={isPending}>
                 {isPending ? "Сохранение…" : "Сохранить"}
               </Button>
             </DialogFooter>
@@ -445,7 +446,7 @@ export const LessonDialog = ({
                 disabled={isPending}
               />
             </div>
-            <Button type="submit" variant="secondary" disabled={isPending}>
+            <Button type="submit" variant="secondary" disabled={isPending} aria-busy={isPending}>
               Отметить проведённым
             </Button>
           </form>
@@ -457,6 +458,7 @@ export const LessonDialog = ({
             variant="outline"
             className="w-full"
             disabled={isPending}
+            aria-busy={isPending}
             onClick={handleCancelLesson}
           >
             Отменить урок
@@ -472,6 +474,7 @@ export const LessonDialog = ({
             variant="destructive"
             className="w-full border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10"
             disabled={isPending}
+            aria-busy={isPending}
             onClick={handleDeleteSeries}
           >
             Удалить всю серию
@@ -484,6 +487,7 @@ export const LessonDialog = ({
             variant="destructive"
             className="w-full"
             disabled={isPending}
+            aria-busy={isPending}
             onClick={handleDelete}
           >
             Удалить урок

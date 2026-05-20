@@ -1,15 +1,15 @@
 "use client"
 
-import { useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useMemo, useState } from "react"
 import { parseISO } from "date-fns"
 import { toZonedTime } from "date-fns-tz"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { LessonBlock } from "@/components/schedule/lesson-block"
 import { LessonDialog } from "@/components/schedule/lesson-dialog"
 import { WeekDatePicker } from "@/components/schedule/week-date-picker"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { DEFAULT_TIME_ZONE } from "@/lib/constants"
 import {
   formatDayHeader,
@@ -98,27 +98,42 @@ export const WeekCalendar = ({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-3">
-        <WeekDatePicker weekStart={weekStart} pathname={pathname} />
-
-        <div className="flex items-center justify-end gap-2">
-          <Link href={`${pathname}?week=${prevWeek}`}>
-            <Button variant="outline" size="icon-sm" type="button" aria-label="Предыдущая неделя">
-              <ChevronLeft className="size-4" />
-            </Button>
-          </Link>
-          <Link href={`${pathname}?week=${weekParam}`}>
-            <Button variant="outline" size="sm" type="button">
-              Сегодня
-            </Button>
-          </Link>
-          <Link href={`${pathname}?week=${nextWeek}`}>
-            <Button variant="outline" size="icon-sm" type="button" aria-label="Следующая неделя">
-              <ChevronRight className="size-4" />
-            </Button>
-          </Link>
+      <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+        <div className="order-1 flex justify-center sm:order-2 sm:col-start-2">
+          <WeekDatePicker weekStart={weekStart} pathname={pathname} />
         </div>
-      </div>
+
+        <div className="order-2 flex items-center justify-between gap-2 sm:contents">
+          
+
+          <div className="flex items-center gap-2 sm:col-start-3 sm:justify-self-end">
+            <Link
+              href={`${pathname}?week=${prevWeek}`}
+              className={cn(
+                buttonVariants({ variant: "outline", size: "icon-sm" }),
+                "sm:col-start-1 sm:justify-self-start"
+              )}
+              aria-label="Предыдущая неделя"
+            >
+              <ChevronLeft className="size-4" />
+            </Link>
+            <Link
+              href={`${pathname}?week=${weekParam}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Сегодня
+            </Link>
+            <Link
+              href={`${pathname}?week=${nextWeek}`}
+              className={cn(
+                buttonVariants({ variant: "outline", size: "icon-sm" })
+              )}
+              aria-label="Следующая неделя"
+            >
+              <ChevronRight className="size-4" />
+            </Link>
+          </div>
+        </div>      </div>
 
       {courses.length === 0 ? (
         <p className="text-sm text-muted-foreground">
@@ -126,7 +141,7 @@ export const WeekCalendar = ({
         </p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="overflow-x-auto rounded-lg border border-border" tabIndex={0} aria-label="Недельное расписание, прокрутите горизонтально на узком экране">
         <div className="min-w-[720px]">
           <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] border-b border-border bg-muted/40">
             <div className="p-2" />
@@ -179,8 +194,8 @@ export const WeekCalendar = ({
                         )}
                         style={{ top: i * 48, height: 48 }}
                         onClick={() => handleSlotClick(dayKey, hour)}
-                        aria-label={`Создать урок ${dayKey} ${hour}:00`}
-                        tabIndex={permissions.canCreate ? 0 : -1}
+                        aria-hidden={!permissions.canCreate}
+                        tabIndex={-1}
                       />
                     )
                   })}
@@ -197,6 +212,10 @@ export const WeekCalendar = ({
           </div>
         </div>
       </div>
+
+      <p className="text-xs text-muted-foreground sm:hidden">
+        Листайте таблицу влево и вправо, чтобы увидеть все дни недели.
+      </p>
 
       <LessonDialog
         open={dialogOpen}

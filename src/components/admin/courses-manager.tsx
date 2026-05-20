@@ -44,6 +44,9 @@ export const CoursesManager = ({ courses }: CoursesManagerProps) => {
   }
 
   const handleDelete = (courseId: string) => {
+    if (!window.confirm("Удалить курс? Связанные уроки могут стать недоступны.")) {
+      return
+    }
     const fd = new FormData()
     fd.set("course_id", courseId)
     startTransition(async () => {

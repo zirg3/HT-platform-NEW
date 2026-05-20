@@ -8,7 +8,7 @@ import {
   updateProfileAction,
 } from "@/app/actions/users"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -24,7 +24,7 @@ import type { ProfileRow } from "@/lib/users/types"
 import type { UserRole } from "@/types/roles"
 
 const selectClassName = cn(
-  "flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm",
+  "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm",
   "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none",
   "disabled:pointer-events-none disabled:opacity-50"
 )
@@ -74,6 +74,9 @@ export const UsersManager = ({
   }
 
   const handleDelete = (profileId: string) => {
+    if (!window.confirm("Удалить пользователя? Действие нельзя отменить.")) {
+      return
+    }
     const fd = new FormData()
     fd.set("profile_id", profileId)
     startTransition(async () => {
@@ -153,14 +156,16 @@ export const UsersManager = ({
             tab.value === "all" ? "/admin/users" : `/admin/users?role=${tab.value}`
           const isActive = activeRole === tab.value
           return (
-            <Link key={tab.value} href={href}>
-              <Button
-                type="button"
-                size="sm"
-                variant={isActive ? "default" : "outline"}
-              >
-                {tab.label}
-              </Button>
+            <Link
+              key={tab.value}
+              href={href}
+              className={buttonVariants({
+                size: "sm",
+                variant: isActive ? "default" : "outline",
+              })}
+              aria-current={isActive ? "page" : undefined}
+            >
+              {tab.label}
             </Link>
           )
         })}

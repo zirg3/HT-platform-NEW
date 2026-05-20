@@ -17,6 +17,7 @@ type SchedulePageProps = {
 
 export const SchedulePage = async ({ profile, week }: SchedulePageProps) => {
   const weekStart = parseWeekParam(week)
+  const weekParam = formatWeekParam(weekStart)
   const permissions = getSchedulePermissions(profile)
 
   const [lessons, courses] = await Promise.all([
@@ -49,14 +50,21 @@ export const SchedulePage = async ({ profile, week }: SchedulePageProps) => {
         permissions={permissions}
         profileId={profile.id}
       />
-      {(profile.role === "student" || profile.role === "teacher") ? (
-        <AgendaSection profile={profile} />
+      {profile.role === "student" || profile.role === "teacher" ? (
+        <AgendaSection
+          profile={profile}
+          week={weekParam}
+          courses={courses}
+          students={students}
+          teachers={teachers}
+          permissions={permissions}
+        />
       ) : null}
       <p className="text-xs text-muted-foreground">
-        Неделя с {formatWeekParam(weekStart)}. Часовой пояс: Europe/Moscow.
+        Неделя с {weekParam}. Часовой пояс: Europe/Moscow.
         {permissions.canCreate
-          ? " Клик по ячейке — новый урок."
-          : " Только просмотр и отмена своих уроков."}
+          ? " Клик по ячейке календаря — новый урок; по блоку или строке списка — карточка урока."
+          : " Нажмите урок в календаре или в списке ниже, чтобы открыть карточку и при необходимости отменить."}
       </p>
     </div>
   )

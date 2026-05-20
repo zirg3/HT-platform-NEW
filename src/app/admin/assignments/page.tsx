@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import { AdminNav } from "@/components/admin/admin-nav"
 import { AssignmentsManager } from "@/components/admin/assignments-manager"
 import { fetchAllStudents, fetchTeachers } from "@/lib/schedule/queries"
 import { fetchStudentTeacherLinks } from "@/lib/users/queries"
@@ -20,10 +19,7 @@ export default async function AdminAssignmentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-3">
-        <h1 className="text-xl font-semibold">Привязки</h1>
-        <AdminNav />
-      </div>
+      <h1 className="text-xl font-semibold">Привязки</h1>
       <AssignmentsManager links={links} students={students} teachers={teachers} />
     </div>
   )

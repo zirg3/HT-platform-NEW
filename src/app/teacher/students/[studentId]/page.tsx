@@ -1,8 +1,6 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import { AgendaLessonLists } from "@/components/schedule/agenda-lesson-lists"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -58,16 +56,9 @@ export default async function TeacherStudentProfilePage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">{displayName}</h1>
-          <p className="text-sm text-muted-foreground">{studentProfile.email}</p>
-        </div>
-        <Link href="/teacher/students">
-          <Button variant="outline" size="sm" type="button">
-            К списку учеников
-          </Button>
-        </Link>
+      <div>
+        <h1 className="text-xl font-semibold">{displayName}</h1>
+        <p className="text-sm text-muted-foreground">{studentProfile.email}</p>
       </div>
 
       <section className="space-y-3">

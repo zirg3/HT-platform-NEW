@@ -1,7 +1,5 @@
 import type { Metadata } from "next"
 
-import { AdminNav } from "@/components/admin/admin-nav"
-
 import { SchedulePage } from "@/components/schedule/schedule-page"
 
 import { requireRole } from "@/lib/auth/session"
@@ -36,13 +34,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
     <div className="space-y-6">
 
-      <div className="space-y-3">
-
-        <h1 className="text-xl font-semibold">Расписание</h1>
-
-        <AdminNav />
-
-      </div>
+      <h1 className="text-xl font-semibold">Расписание</h1>
 
       <SchedulePage profile={profile} week={params.week} />
 

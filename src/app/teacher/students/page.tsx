@@ -7,7 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { fetchTeacherStudents } from "@/lib/schedule/queries"
 import { requireRole } from "@/lib/auth/session"
 
@@ -21,14 +20,7 @@ export default async function TeacherStudentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Мои ученики</h1>
-        <Link href="/teacher">
-          <Button variant="outline" size="sm" type="button">
-            К расписанию
-          </Button>
-        </Link>
-      </div>
+      <h1 className="text-xl font-semibold">Мои ученики</h1>
       <Card>
         <CardHeader>
           <CardTitle>Ученики ({students.length})</CardTitle>
