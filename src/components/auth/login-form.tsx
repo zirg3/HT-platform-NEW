@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useActionState } from "react"
 import { loginAction, type LoginState } from "@/app/login/actions"
 import { Button } from "@/components/ui/button"
@@ -18,9 +19,10 @@ const initialState: LoginState = {}
 
 type LoginFormProps = {
   nextPath?: string
+  passwordResetSuccess?: boolean
 }
 
-export const LoginForm = ({ nextPath }: LoginFormProps) => {
+export const LoginForm = ({ nextPath, passwordResetSuccess }: LoginFormProps) => {
   const [state, formAction, isPending] = useActionState(loginAction, initialState)
 
   return (
@@ -34,6 +36,14 @@ export const LoginForm = ({ nextPath }: LoginFormProps) => {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {passwordResetSuccess ? (
+          <p
+            className="mb-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm"
+            role="status"
+          >
+            Пароль обновлён. Войдите с новым паролем.
+          </p>
+        ) : null}
         <form action={formAction} className="space-y-4" noValidate>
           {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
           <div className="space-y-2">
@@ -57,6 +67,15 @@ export const LoginForm = ({ nextPath }: LoginFormProps) => {
               required
               aria-required
             />
+          </div>
+          <div className="flex justify-end">
+            <Link
+              href="/login/forgot-password"
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              tabIndex={0}
+            >
+              Забыли пароль?
+            </Link>
           </div>
           {state.error ? (
             <p

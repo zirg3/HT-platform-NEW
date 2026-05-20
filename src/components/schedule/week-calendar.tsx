@@ -8,12 +8,12 @@ import { toZonedTime } from "date-fns-tz"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { LessonBlock } from "@/components/schedule/lesson-block"
 import { LessonDialog } from "@/components/schedule/lesson-dialog"
+import { WeekDatePicker } from "@/components/schedule/week-date-picker"
 import { Button } from "@/components/ui/button"
 import { DEFAULT_TIME_ZONE } from "@/lib/constants"
 import {
   formatDayHeader,
   formatWeekParam,
-  formatWeekRangeLabel,
   getHourLabels,
   getWeekDays,
   SCHEDULE_END_HOUR,
@@ -98,11 +98,10 @@ export const WeekCalendar = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">
-          Неделя · {formatWeekRangeLabel(weekStart)}
-        </h2>
-        <div className="flex items-center gap-2">
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:gap-3">
+        <WeekDatePicker weekStart={weekStart} pathname={pathname} />
+
+        <div className="flex items-center justify-end gap-2">
           <Link href={`${pathname}?week=${prevWeek}`}>
             <Button variant="outline" size="icon-sm" type="button" aria-label="Предыдущая неделя">
               <ChevronLeft className="size-4" />
