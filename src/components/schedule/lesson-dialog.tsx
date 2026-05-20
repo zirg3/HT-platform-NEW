@@ -40,7 +40,7 @@ import type {
 } from "@/lib/schedule/types"
 
 const selectClassName = cn(
-  "flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm",
+  "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm",
   "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none",
   "disabled:pointer-events-none disabled:opacity-50"
 )
@@ -195,7 +195,7 @@ export const LessonDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto bg-background sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Урок" : "Новый урок"}</DialogTitle>
           <DialogDescription>

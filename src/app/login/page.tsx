@@ -6,16 +6,20 @@ export const metadata: Metadata = {
 }
 
 type LoginPageProps = {
-  searchParams: Promise<{ next?: string }>
+  searchParams: Promise<{ next?: string; reset?: string }>
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams
   const nextPath = params.next?.startsWith("/") ? params.next : undefined
+  const passwordResetSuccess = params.reset === "success"
 
   return (
     <div className="flex min-h-full flex-1 flex-col items-center justify-center bg-muted/30 px-4 py-12">
-      <LoginForm nextPath={nextPath} />
+      <LoginForm
+        nextPath={nextPath}
+        passwordResetSuccess={passwordResetSuccess}
+      />
     </div>
   )
 }
