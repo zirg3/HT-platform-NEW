@@ -14,10 +14,5 @@ export default async function TeacherPage({ searchParams }: TeacherPageProps) {
   const profile = await requireRole("teacher")
   const params = await searchParams
 
-  return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Расписание</h1>
-      <SchedulePage profile={profile} week={params.week} />
-    </div>
-  )
+  return <SchedulePage profile={profile} week={params.week} />
 }

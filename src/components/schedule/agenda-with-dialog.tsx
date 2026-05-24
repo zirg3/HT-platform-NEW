@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { AgendaLessonLists } from "@/components/schedule/agenda-lesson-lists"
+import { AgendaList } from "@/components/schedule/agenda-lesson-lists"
 import { LessonDialog } from "@/components/schedule/lesson-dialog"
 import { splitLessonsByNow } from "@/lib/schedule/agenda"
 import type {
@@ -48,16 +48,24 @@ export const AgendaWithDialog = ({
 
   return (
     <>
-      <section className="space-y-3" aria-labelledby="agenda-heading">
-        <h2 id="agenda-heading" className="text-lg font-semibold">
-          Мои занятия
-        </h2>
-        <AgendaLessonLists
-          upcoming={upcoming}
-          past={past}
+      <section className="flex flex-col rounded-2xl border border-border/70 bg-white/30 p-4 sm:p-5">
+        <AgendaList
+          title="Предстоящие занятия"
+          description="Ближайшие уроки"
+          lessons={upcoming}
           context={context}
+          variant="upcoming"
           onSelectLesson={handleSelectLesson}
-          emptyHint="Окно списка: −90…+180 дней от сегодня (полный календарь — выше). Нажмите на занятие, чтобы открыть карточку."
+        />
+      </section>
+      <section className="flex flex-col rounded-2xl border border-border/70 bg-white/30 p-4 sm:p-5">
+        <AgendaList
+          title="Прошедшие занятия"
+          description="История"
+          lessons={[...past].reverse()}
+          context={context}
+          variant="past"
+          onSelectLesson={handleSelectLesson}
         />
       </section>
       <LessonDialog

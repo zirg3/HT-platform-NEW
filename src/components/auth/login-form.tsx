@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { useActionState } from "react"
-import { loginAction, type LoginState } from "@/app/login/actions"
+import { useRouter } from "next/navigation"
+import { useCallback, useRef, useState, useTransition } from "react"
+import { resolveLoginRoleAction } from "@/app/login/resolve-role"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -14,87 +15,208 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SITE_NAME } from "@/lib/constants"
-
-const initialState: LoginState = {}
+import { createClient } from "@/lib/supabase/client"
+import { getSupabasePublicEnv } from "@/lib/supabase/public-env"
+import { cn } from "@/lib/utils"
 
 type LoginFormProps = {
   nextPath?: string
   passwordResetSuccess?: boolean
 }
 
+const mapAuthError = (message: string) => {
+  const lower = message.toLowerCase()
+  if (
+    lower.includes("invalid") ||
+    lower.includes("credentials") ||
+    lower.includes("email")
+  ) {
+    return "Неверный email или пароль"
+  }
+  if (lower.includes("fetch") || lower.includes("network")) {
+    return "Нет связи с Supabase. Проверьте интернет и .env.local."
+  }
+  return message
+}
+
 export const LoginForm = ({ nextPath, passwordResetSuccess }: LoginFormProps) => {
-  const [state, formAction, isPending] = useActionState(loginAction, initialState)
+  const router = useRouter()
+  const envCheck = getSupabasePublicEnv()
+  const [error, setError] = useState<string | undefined>(
+    envCheck.ok ? undefined : envCheck.message
+  )
+  const [isRedirecting, setIsRedirecting] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const isSubmittingRef = useRef(false)
+
+  const readCredentials = (form: HTMLFormElement) => {
+    const emailEl = form.elements.namedItem("email")
+    const passwordEl = form.elements.namedItem("password")
+    const email =
+      emailEl instanceof HTMLInputElement ? emailEl.value.trim() : ""
+    const password =
+      passwordEl instanceof HTMLInputElement ? passwordEl.value : ""
+    return { email, password }
+  }
+
+  const handleSubmit = useCallback(
+    (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault()
+      if (!envCheck.ok || isSubmittingRef.current || isRedirecting) return
+
+      const form = e.currentTarget
+      const { email, password } = readCredentials(form)
+
+      if (!email || !password) {
+        setError("Введите email и пароль")
+        return
+      }
+
+      isSubmittingRef.current = true
+      setError(undefined)
+
+      startTransition(async () => {
+        try {
+          const supabase = createClient()
+
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
+
+          if (signInError) {
+            setError(mapAuthError(signInError.message))
+            isSubmittingRef.current = false
+            return
+          }
+
+          router.refresh()
+
+          const resolved = await resolveLoginRoleAction(nextPath)
+
+          if (resolved.error || !resolved.redirectTo) {
+            await supabase.auth.signOut()
+            setError(
+              resolved.error ??
+                "Профиль не найден. Обратитесь к администратору."
+            )
+            isSubmittingRef.current = false
+            return
+          }
+
+          setIsRedirecting(true)
+          window.location.assign(resolved.redirectTo)
+        } catch (err) {
+          const message =
+            err instanceof Error ? mapAuthError(err.message) : null
+          setError(
+            message ?? "Ошибка соединения. Проверьте .env.local и интернет."
+          )
+          isSubmittingRef.current = false
+        }
+      })
+    },
+    [envCheck.ok, isRedirecting, nextPath, router]
+  )
+
+  const busy = isPending || isRedirecting
 
   return (
-    <Card className="w-full max-w-md border-border/80 shadow-sm">
-      <CardHeader className="space-y-1">
-        <p className="text-sm font-medium text-muted-foreground">{SITE_NAME}</p>
-        <CardTitle className="text-2xl">Вход</CardTitle>
-        <CardDescription>
-          Вход по email и паролю. Регистрация доступна только через
-          администратора.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {passwordResetSuccess ? (
-          <p
-            className="mb-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm"
-            role="status"
-          >
-            Пароль обновлён. Войдите с новым паролем.
+    <>
+      {isRedirecting ? (
+        <div
+          className="fixed inset-0 z-100 flex flex-col items-center justify-center gap-4 bg-background/80 backdrop-blur-md"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div
+            className="size-10 animate-spin rounded-full border-2 border-primary border-t-transparent"
+            aria-hidden
+          />
+          <p className="text-sm font-medium text-foreground">
+            Вход выполнен. Открываем кабинет…
           </p>
-        ) : null}
-        <form action={formAction} className="space-y-4" noValidate>
-          {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              aria-required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Пароль</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              aria-required
-            />
-          </div>
-          <div className="flex justify-end">
-            <Link
-              href="/login/forgot-password"
-              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-              tabIndex={0}
-            >
-              Забыли пароль?
-            </Link>
-          </div>
-          {state.error ? (
+        </div>
+      ) : null}
+
+      <Card className="w-full max-w-md border-white/50 shadow-xl">
+        <CardHeader className="space-y-1">
+          <p className="text-sm font-medium text-muted-foreground">{SITE_NAME}</p>
+          <CardTitle className="text-2xl">Вход</CardTitle>
+          <CardDescription>
+            Вход по email и паролю. Регистрация доступна только через
+            администратора.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {passwordResetSuccess ? (
             <p
-              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-              role="alert"
+              className="mb-4 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm"
+              role="status"
             >
-              {state.error}
+              Пароль обновлён. Войдите с новым паролем.
             </p>
           ) : null}
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isPending}
-            aria-busy={isPending}
-          >
-            {isPending ? "Вход…" : "Войти"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                aria-required
+                disabled={busy || !envCheck.ok}
+                className="glass-input h-10 border border-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Пароль</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                aria-required
+                disabled={busy || !envCheck.ok}
+                className="glass-input h-10 border border-input"
+              />
+            </div>
+            <div className="flex justify-end">
+              <Link
+                href="/login/forgot-password"
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Забыли пароль?
+              </Link>
+            </div>
+            {error ? (
+              <p
+                className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                role="alert"
+              >
+                {error}
+              </p>
+            ) : null}
+            <Button
+              type="submit"
+              className={cn("w-full shadow-md", busy && "pointer-events-none")}
+              disabled={busy || !envCheck.ok}
+              aria-busy={busy}
+            >
+              {isRedirecting
+                ? "Переход…"
+                : isPending
+                  ? "Проверка…"
+                  : "Войти"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </>
   )
 }

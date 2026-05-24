@@ -3,6 +3,7 @@ import type { ProfileBrief } from "@/lib/schedule/types"
 
 export type ProfileRow = ProfileBrief & {
   role: UserRole
+  is_teacher: boolean
   created_at: string
 }
 

@@ -141,6 +141,19 @@ export const UsersManager = ({
                 ))}
               </select>
             </div>
+            <div className="flex items-center gap-2 sm:col-span-2">
+              <input
+                type="checkbox"
+                id="create_is_teacher"
+                name="is_teacher"
+                value="on"
+                className="h-4 w-4 rounded border-input"
+                disabled={isPending}
+              />
+              <Label htmlFor="create_is_teacher" className="font-normal">
+                Также преподаватель (можно назначать учеников)
+              </Label>
+            </div>
             <div className="sm:col-span-2">
               <Button type="submit" disabled={isPending}>
                 Создать
@@ -217,6 +230,23 @@ export const UsersManager = ({
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`is_teacher_${user.id}`}
+                      name="is_teacher"
+                      value="on"
+                      defaultChecked={user.is_teacher}
+                      className="h-4 w-4 rounded border-input"
+                      disabled={isPending}
+                    />
+                    <Label
+                      htmlFor={`is_teacher_${user.id}`}
+                      className="text-xs font-normal"
+                    >
+                      Также преподаватель
+                    </Label>
                   </div>
                   <Button type="submit" size="sm" variant="outline" disabled={isPending}>
                     Сохранить

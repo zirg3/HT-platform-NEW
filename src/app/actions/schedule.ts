@@ -1,15 +1,15 @@
 "use server"
 
 import { addDays, addMinutes, parseISO } from "date-fns"
-import { revalidatePath } from "next/cache"
 import { requireAuth } from "@/lib/auth/session"
 import { findLessonConflicts } from "@/lib/schedule/conflicts"
 import { localInputToUtcIso, parseWeekParam } from "@/lib/schedule/dates"
-import { getSchedulePermissions } from "@/lib/schedule/permissions"
+import { getSchedulePermissions, canRescheduleLesson, canCompleteLessonNow } from "@/lib/schedule/permissions"
 import {
-  fetchLessonsBetween,
-  fetchLessonsForWeek,
+  fetchLessonsBetweenConflicts,
+  fetchLessonsForWeekConflicts,
 } from "@/lib/schedule/queries"
+import { revalidateSchedule } from "@/lib/schedule/revalidate-schedule"
 import { buildWeeklyStartsUtc } from "@/lib/schedule/recurrence"
 import type { LessonRow } from "@/lib/schedule/types"
 import { createClient } from "@/lib/supabase/server"
@@ -17,14 +17,6 @@ import { createClient } from "@/lib/supabase/server"
 export type ActionResult = {
   error?: string
   warning?: string
-}
-
-const revalidateSchedule = (week?: string) => {
-  revalidatePath("/teacher")
-  revalidatePath("/student")
-  revalidatePath("/manager")
-  revalidatePath("/admin")
-  if (week) revalidatePath(`/teacher?week=${week}`)
 }
 
 export const saveLessonAction = async (
@@ -62,7 +54,7 @@ export const saveLessonAction = async (
 
   const startsAt = localInputToUtcIso(date, time)
   const weekStart = parseWeekParam(week || date)
-  const existingLessons = await fetchLessonsForWeek(weekStart)
+  const existingLessons = await fetchLessonsForWeekConflicts(weekStart)
   const warnings = findLessonConflicts(
     existingLessons,
     startsAt,
@@ -124,7 +116,7 @@ export const saveLessonAction = async (
         parseISO(instances[instances.length - 1]!),
         durationMinutes + 1
       )
-      const existingInRange = await fetchLessonsBetween(
+      const existingInRange = await fetchLessonsBetweenConflicts(
         addDays(rangeStart, -1),
         addDays(rangeEndExclusive, 2)
       )
@@ -155,6 +147,10 @@ export const saveLessonAction = async (
           recurrence_group_id: null,
           cancelled_at: null,
           cancelled_by: null,
+          cancellation_reason: null,
+          rescheduled_at: null,
+          rescheduled_by: null,
+          original_starts_at: null,
           cancelled_by_profile: null,
           courses: null,
           teacher: null,
@@ -201,7 +197,7 @@ export const saveLessonAction = async (
         })
       }
 
-      revalidateSchedule(week)
+      revalidateSchedule(week, profile.role)
       const uniq = [...new Set(allWarnings)]
       return uniq.length ? { warning: uniq.join("; ") } : {}
     }
@@ -235,7 +231,7 @@ export const saveLessonAction = async (
     })
   }
 
-  revalidateSchedule(week)
+  revalidateSchedule(week, profile.role)
   return warnings.length ? { warning: warnings.join("; ") } : {}
 }
 
@@ -251,6 +247,9 @@ export const cancelLessonAction = async (
 
   const lessonId = String(formData.get("lesson_id") ?? "").trim()
   const week = String(formData.get("week") ?? "").trim()
+  const cancellationReason = String(
+    formData.get("cancellation_reason") ?? ""
+  ).trim()
 
   if (!lessonId) return { error: "Урок не указан" }
 
@@ -261,6 +260,7 @@ export const cancelLessonAction = async (
       status: "cancelled",
       cancelled_at: new Date().toISOString(),
       cancelled_by: profile.id,
+      cancellation_reason: cancellationReason || null,
     })
     .eq("id", lessonId)
 
@@ -270,9 +270,71 @@ export const cancelLessonAction = async (
     lesson_id: lessonId,
     action: "cancelled",
     actor_id: profile.id,
+    meta: cancellationReason ? { reason: cancellationReason } : {},
   })
 
-  revalidateSchedule(week)
+  revalidateSchedule(week, profile.role)
+  return {}
+}
+
+export const rescheduleLessonAction = async (
+  formData: FormData
+): Promise<ActionResult> => {
+  const profile = await requireAuth()
+  const lessonId = String(formData.get("lesson_id") ?? "").trim()
+  const date = String(formData.get("date") ?? "").trim()
+  const time = String(formData.get("time") ?? "").trim()
+  const week = String(formData.get("week") ?? "").trim()
+
+  if (!lessonId) return { error: "Урок не указан" }
+  if (!date || !time) return { error: "Укажите новую дату и время" }
+
+  const supabase = await createClient()
+  const { data: lesson, error: fetchError } = await supabase
+    .from("lessons")
+    .select("id, teacher_id, status, starts_at")
+    .eq("id", lessonId)
+    .single()
+
+  if (fetchError || !lesson) {
+    return { error: fetchError?.message ?? "Урок не найден" }
+  }
+
+  if (lesson.status !== "scheduled") {
+    return { error: "Перенести можно только запланированный урок" }
+  }
+
+  if (!canRescheduleLesson(profile, lesson.teacher_id)) {
+    return { error: "Нет прав на перенос этого урока" }
+  }
+
+  const newStartsAt = localInputToUtcIso(date, time)
+  const originalStartsAt = lesson.starts_at
+
+  const { error } = await supabase
+    .from("lessons")
+    .update({
+      starts_at: newStartsAt,
+      rescheduled_at: new Date().toISOString(),
+      rescheduled_by: profile.id,
+      original_starts_at: originalStartsAt,
+    })
+    .eq("id", lessonId)
+
+  if (error) return { error: error.message }
+
+  await supabase.from("lesson_audit").insert({
+    lesson_id: lessonId,
+    action: "updated",
+    actor_id: profile.id,
+    meta: {
+      rescheduled: true,
+      from: originalStartsAt,
+      to: newStartsAt,
+    },
+  })
+
+  revalidateSchedule(week, profile.role)
   return {}
 }
 
@@ -296,7 +358,7 @@ export const deleteLessonAction = async (
 
   if (error) return { error: error.message }
 
-  revalidateSchedule(week)
+  revalidateSchedule(week, profile.role)
   return {}
 }
 
@@ -353,7 +415,7 @@ export const deleteLessonSeriesAction = async (
 
   if (error) return { error: error.message }
 
-  revalidateSchedule(week)
+  revalidateSchedule(week, profile.role)
   return {}
 }
 
@@ -377,7 +439,7 @@ export const completeLessonAction = async (
 
   const { data: lesson, error: fetchError } = await supabase
     .from("lessons")
-    .select("id, teacher_id, status")
+    .select("id, teacher_id, status, starts_at")
     .eq("id", lessonId)
     .single()
 
@@ -391,6 +453,16 @@ export const completeLessonAction = async (
 
   if (profile.role === "teacher" && lesson.teacher_id !== profile.id) {
     return { error: "Нет прав на этот урок" }
+  }
+
+  if (
+    profile.role !== "student" &&
+    !canCompleteLessonNow(lesson.starts_at)
+  ) {
+    return {
+      error:
+        "Урок можно отметить проведённым только после времени начала занятия",
+    }
   }
 
   const { error: statusError } = await supabase
@@ -418,6 +490,6 @@ export const completeLessonAction = async (
     meta: { completed: true },
   })
 
-  revalidateSchedule(week)
+  revalidateSchedule(week, profile.role)
   return {}
 }

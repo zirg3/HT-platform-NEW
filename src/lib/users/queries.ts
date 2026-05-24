@@ -6,7 +6,7 @@ export const fetchProfiles = async (role?: UserRole): Promise<ProfileRow[]> => {
   const supabase = await createClient()
   let query = supabase
     .from("profiles")
-    .select("id, full_name, email, role, created_at")
+    .select("id, full_name, email, role, is_teacher, created_at")
     .order("full_name")
 
   if (role) query = query.eq("role", role)
@@ -20,7 +20,7 @@ export const fetchProfileById = async (id: string): Promise<ProfileRow | null> =
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, email, role, created_at")
+    .select("id, full_name, email, role, is_teacher, created_at")
     .eq("id", id)
     .maybeSingle()
 

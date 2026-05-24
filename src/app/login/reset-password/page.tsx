@@ -25,8 +25,8 @@ export default async function ResetPasswordPage() {
 
   if (!user) {
     return (
-      <div className="flex min-h-full flex-1 flex-col items-center justify-center bg-muted/30 px-4 py-12">
-        <Card className="w-full max-w-md border-border/80 shadow-sm">
+      <div className="aurora-bg flex min-h-full flex-1 flex-col items-center justify-center px-4 py-12">
+        <Card className="w-full max-w-md border-border/50 shadow-lg">
           <CardHeader className="space-y-1">
             <p className="text-sm font-medium text-muted-foreground">
               {SITE_NAME}
@@ -57,7 +57,7 @@ export default async function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-1 flex-col items-center justify-center bg-muted/30 px-4 py-12">
+    <div className="aurora-bg flex min-h-full flex-1 flex-col items-center justify-center px-4 py-12">
       <ResetPasswordForm />
     </div>
   )

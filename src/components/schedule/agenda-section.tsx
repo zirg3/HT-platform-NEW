@@ -1,6 +1,6 @@
 import { AgendaWithDialog } from "@/components/schedule/agenda-with-dialog"
 import type { Profile } from "@/lib/auth/session"
-import { fetchAgendaLessonsForLk } from "@/lib/schedule/queries"
+import { getCachedAgendaLessons } from "@/lib/schedule/cached-queries"
 import type {
   CourseRow,
   ProfileBrief,
@@ -28,7 +28,7 @@ export const AgendaSection = async ({
     return null
   }
 
-  const lessons = await fetchAgendaLessonsForLk(profile.id, profile.role)
+  const lessons = await getCachedAgendaLessons(profile.id, profile.role)
 
   return (
     <AgendaWithDialog

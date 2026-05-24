@@ -70,7 +70,7 @@ export const getLessonTopPercent = (iso: string, durationMinutes: number) => {
   const height = (durationMinutes / totalMinutes) * 100
   return {
     top: Math.max(0, Math.min(top, 100)),
-    height: Math.max(4, Math.min(height, 100 - top)),
+    height: Math.max(6, Math.min(height, 100 - top)),
   }
 }
 

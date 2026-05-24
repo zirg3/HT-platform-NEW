@@ -7,6 +7,7 @@ import type { UserRole } from "@/types/roles"
 
 export type LoginState = {
   error?: string
+  redirectTo?: string
 }
 
 export const loginAction = async (
@@ -20,33 +21,40 @@ export const loginAction = async (
     return { error: "Введите email и пароль" }
   }
 
-  const supabase = await createClient()
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
+  try {
+    const supabase = await createClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-  if (signInError) {
-    return { error: "Неверный email или пароль" }
+    if (signInError) {
+      return { error: "Неверный email или пароль" }
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .single()
+
+    if (profileError || !profile?.role) {
+      return { error: "Профиль не найден. Обратитесь к администратору." }
+    }
+
+    const nextPath = String(formData.get("next") ?? "").trim()
+    const roleHome = getRoleHomePath(profile.role as UserRole)
+
+    if (nextPath && nextPath.startsWith("/") && !nextPath.startsWith("/login")) {
+      return { redirectTo: nextPath }
+    }
+
+    return { redirectTo: roleHome }
+  } catch {
+    return {
+      error:
+        "Не удалось связаться с сервером. Проверьте интернет и настройки Supabase в .env.local.",
+    }
   }
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role")
-    .single()
-
-  if (profileError || !profile?.role) {
-    return { error: "Профиль не найден. Обратитесь к администратору." }
-  }
-
-  const nextPath = String(formData.get("next") ?? "").trim()
-  const roleHome = getRoleHomePath(profile.role as UserRole)
-
-  if (nextPath && nextPath.startsWith("/") && !nextPath.startsWith("/login")) {
-    redirect(nextPath)
-  }
-
-  redirect(roleHome)
 }
 
 export const logoutAction = async () => {

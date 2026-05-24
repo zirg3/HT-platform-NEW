@@ -1,12 +1,15 @@
 "use client"
 
 import { addWeeks, format, parseISO } from "date-fns"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useMemo, useState, useTransition } from "react"
 import {
   cancelLessonAction,
   completeLessonAction,
   deleteLessonAction,
   deleteLessonSeriesAction,
+  rescheduleLessonAction,
   saveLessonAction,
 } from "@/app/actions/schedule"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -30,7 +33,9 @@ import {
   utcIsoToLocalInputs,
 } from "@/lib/schedule/dates"
 import { MAX_WEEKLY_OCCURRENCES } from "@/lib/schedule/recurrence"
-import { formatCancellationSummary } from "@/lib/schedule/cancel-info"
+import { formatCancellationSummary, formatRescheduleSummary } from "@/lib/schedule/cancel-info"
+import { canCompleteLessonNow } from "@/lib/schedule/permissions"
+import { getLessonAppearance } from "@/lib/schedule/lesson-appearance"
 import { safeLessonMeetingHref } from "@/lib/schedule/meeting-link"
 import type {
   CourseRow,
@@ -70,9 +75,13 @@ export const LessonDialog = ({
   permissions,
   profileId,
 }: LessonDialogProps) => {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ error?: string; warning?: string }>({})
   const [weeklyRepeat, setWeeklyRepeat] = useState(false)
+  const [showReschedule, setShowReschedule] = useState(false)
+  const [showCancelForm, setShowCancelForm] = useState(false)
+  const [cancelReason, setCancelReason] = useState("")
 
   const isEdit = Boolean(lesson)
   const isCancelled = lesson?.status === "cancelled"
@@ -85,7 +94,16 @@ export const LessonDialog = ({
     isEdit &&
     permissions.canComplete &&
     !isCancelled &&
-    !isCompleted
+    !isCompleted &&
+    Boolean(lesson && canCompleteLessonNow(lesson.starts_at))
+
+  const canRescheduleThis =
+    isEdit &&
+    permissions.canReschedule &&
+    !isCancelled &&
+    !isCompleted &&
+    lesson?.status === "scheduled" &&
+    (!permissions.teacherId || lesson.teacher_id === profileId)
 
   const defaults = lesson
     ? utcIsoToLocalInputs(lesson.starts_at)
@@ -102,6 +120,7 @@ export const LessonDialog = ({
 
   const meetingHref = lesson ? safeLessonMeetingHref(lesson.meeting_url) : null
   const cancelSummary = lesson ? formatCancellationSummary(lesson) : null
+  const rescheduleSummary = lesson ? formatRescheduleSummary(lesson) : null
 
   const canDeleteLesson =
     Boolean(lesson) &&
@@ -122,15 +141,36 @@ export const LessonDialog = ({
     })
   }
 
-  const handleCancelLesson = () => {
+  const handleCancelLesson = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
     if (!lesson) return
     const fd = new FormData()
     fd.set("lesson_id", lesson.id)
     fd.set("week", week)
+    fd.set("cancellation_reason", cancelReason)
     startTransition(async () => {
       const result = await cancelLessonAction(fd)
       setMessage(result)
       if (!result.error) onOpenChange(false)
+    })
+  }
+
+  const handleReschedule = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!lesson) return
+    setMessage({})
+    const formData = new FormData(e.currentTarget)
+    formData.set("lesson_id", lesson.id)
+    formData.set("week", week)
+    startTransition(async () => {
+      const result = await rescheduleLessonAction(formData)
+      if (!result.error) {
+        setShowReschedule(false)
+        setMessage({})
+        router.refresh()
+        return
+      }
+      setMessage(result)
     })
   }
 
@@ -184,19 +224,28 @@ export const LessonDialog = ({
     if (nextOpen) {
       setMessage({})
       setWeeklyRepeat(false)
+      setShowReschedule(false)
+      setShowCancelForm(false)
+      setCancelReason("")
     }
     onOpenChange(nextOpen)
   }
+
+  const formKey = lesson?.id ?? `draft-${draft?.date ?? week}`
 
   const defaultTeacher =
     lesson?.teacher_id ?? permissions.teacherId ?? teachers[0]?.id ?? ""
   const defaultStudent =
     lesson?.lesson_participants[0]?.profile_id ?? students[0]?.id ?? ""
+  const studentProfileHref =
+    permissions.teacherId && defaultStudent
+      ? `/teacher/students/${defaultStudent}`
+      : null
   const defaultCourse = lesson?.course_id ?? courses[0]?.id ?? ""
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto bg-background sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Урок" : "Новый урок"}</DialogTitle>
           <DialogDescription>
@@ -222,6 +271,15 @@ export const LessonDialog = ({
             role="status"
           >
             {cancelSummary}
+          </p>
+        ) : null}
+
+        {rescheduleSummary ? (
+          <p
+            className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-950"
+            role="status"
+          >
+            {rescheduleSummary}
           </p>
         ) : null}
 
@@ -254,7 +312,7 @@ export const LessonDialog = ({
           </Alert>
         ) : null}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form key={formKey} onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="date">Дата</Label>
@@ -345,6 +403,26 @@ export const LessonDialog = ({
                 </option>
               ))}
             </select>
+            {isEdit && studentProfileHref && lesson ? (
+              <Link
+                href={studentProfileHref}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md border-2 px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-90",
+                  getLessonAppearance(lesson).bg,
+                  getLessonAppearance(lesson).border,
+                  getLessonAppearance(lesson).text
+                )}
+                style={{
+                  borderLeftColor: lesson.courses?.color ?? "#64748b",
+                  borderLeftWidth: 4,
+                }}
+              >
+                К ученику
+                <span aria-hidden className="opacity-60">
+                  →
+                </span>
+              </Link>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="meeting_url">Ссылка для подключения</Label>
@@ -433,7 +511,11 @@ export const LessonDialog = ({
         ) : null}
 
         {canComplete ? (
-          <form onSubmit={handleComplete} className="space-y-3 rounded-lg border border-border p-3">
+          <form
+            key={`complete-${formKey}`}
+            onSubmit={handleComplete}
+            className="space-y-3 rounded-lg border border-border p-3"
+          >
             <p className="text-sm font-medium">Провести урок</p>
             <div className="space-y-2">
               <Label htmlFor="homework_body">Домашнее задание</Label>
@@ -450,19 +532,131 @@ export const LessonDialog = ({
               Отметить проведённым
             </Button>
           </form>
+        ) : isEdit &&
+          permissions.canComplete &&
+          !isCancelled &&
+          !isCompleted &&
+          lesson &&
+          !canCompleteLessonNow(lesson.starts_at) ? (
+          <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            Отметить проведённым можно после времени начала урока (
+            {formatLessonTime(lesson.starts_at)}).
+          </p>
         ) : null}
 
-        {isEdit && lesson && permissions.canCancel && !isCancelled && !isCompleted ? (
+        {canRescheduleThis && !showReschedule ? (
           <Button
             type="button"
             variant="outline"
             className="w-full"
             disabled={isPending}
-            aria-busy={isPending}
-            onClick={handleCancelLesson}
+            onClick={() => {
+              setShowReschedule(true)
+              setShowCancelForm(false)
+            }}
           >
-            Отменить урок
+            Перенести занятие
           </Button>
+        ) : null}
+
+        {showReschedule && canRescheduleThis && lesson ? (
+          <form
+            onSubmit={handleReschedule}
+            className="space-y-3 rounded-lg border border-orange-200 bg-orange-50/50 p-3"
+          >
+            <p className="text-sm font-medium">Новая дата и время</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="reschedule_date">Дата</Label>
+                <Input
+                  id="reschedule_date"
+                  name="date"
+                  type="date"
+                  defaultValue={defaults.date}
+                  required
+                  disabled={isPending}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reschedule_time">Время</Label>
+                <Input
+                  id="reschedule_time"
+                  name="time"
+                  type="time"
+                  defaultValue={defaults.time}
+                  required
+                  disabled={isPending}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={isPending} aria-busy={isPending}>
+                Сохранить перенос
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={isPending}
+                onClick={() => setShowReschedule(false)}
+              >
+                Отмена
+              </Button>
+            </div>
+          </form>
+        ) : null}
+
+        {isEdit && lesson && permissions.canCancel && !isCancelled && !isCompleted ? (
+          showCancelForm ? (
+            <form
+              onSubmit={handleCancelLesson}
+              className="space-y-3 rounded-lg border border-red-200 bg-red-50/50 p-3"
+            >
+              <p className="text-sm font-medium">Отмена урока</p>
+              <div className="space-y-2">
+                <Label htmlFor="cancellation_reason">Причина отмены</Label>
+                <Textarea
+                  id="cancellation_reason"
+                  name="cancellation_reason"
+                  rows={2}
+                  placeholder="Например: болезнь, перенос на другой день"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  disabled={isPending}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  disabled={isPending}
+                  aria-busy={isPending}
+                >
+                  Подтвердить отмену
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={isPending}
+                  onClick={() => setShowCancelForm(false)}
+                >
+                  Назад
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={isPending}
+              onClick={() => {
+                setShowCancelForm(true)
+                setShowReschedule(false)
+              }}
+            >
+              Отменить урок
+            </Button>
+          )
         ) : null}
 
         {isEdit &&

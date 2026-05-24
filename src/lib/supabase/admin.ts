@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
+import { supabaseFetch } from "@/lib/supabase/fetch"
 
 /** Service role — только Server Actions / Route Handlers (см. SPEC). */
 export const createAdminClient = () => {
@@ -12,6 +13,9 @@ export const createAdminClient = () => {
   }
 
   return createClient(url, serviceKey, {
+    global: {
+      fetch: supabaseFetch,
+    },
     auth: {
       autoRefreshToken: false,
       persistSession: false,

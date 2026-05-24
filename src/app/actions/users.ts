@@ -19,6 +19,8 @@ export const createUserAction = async (
   const password = String(formData.get("password") ?? "")
   const fullName = String(formData.get("full_name") ?? "").trim()
   const role = String(formData.get("role") ?? "student") as UserRole
+  const isTeacherFlag =
+    role === "teacher" || formData.get("is_teacher") === "on"
 
   if (!email || !password) {
     return { error: "Укажите email и пароль" }
@@ -47,7 +49,12 @@ export const createUserAction = async (
     if (data.user && fullName) {
       await admin
         .from("profiles")
-        .update({ full_name: fullName })
+        .update({ full_name: fullName, is_teacher: isTeacherFlag })
+        .eq("id", data.user.id)
+    } else if (data.user) {
+      await admin
+        .from("profiles")
+        .update({ is_teacher: isTeacherFlag })
         .eq("id", data.user.id)
     }
   } catch (e) {
@@ -67,6 +74,8 @@ export const updateProfileAction = async (
   const profileId = String(formData.get("profile_id") ?? "").trim()
   const fullName = String(formData.get("full_name") ?? "").trim()
   const role = String(formData.get("role") ?? "") as UserRole
+  const isTeacherFlag =
+    role === "teacher" || formData.get("is_teacher") === "on"
 
   if (!profileId) return { error: "Пользователь не указан" }
   if (!fullName) return { error: "Укажите имя" }
@@ -75,7 +84,7 @@ export const updateProfileAction = async (
   const supabase = await createClient()
   const { error } = await supabase
     .from("profiles")
-    .update({ full_name: fullName, role })
+    .update({ full_name: fullName, role, is_teacher: isTeacherFlag })
     .eq("id", profileId)
 
   if (error) return { error: error.message }
