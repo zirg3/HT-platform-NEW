@@ -1,7 +1,6 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { Link, usePathname } from "@/lib/navigation"
 import { buttonVariants } from "@/components/ui/button"
 import { isNavItemActive } from "@/lib/auth/nav-links"
 import { cn } from "@/lib/utils"
@@ -26,7 +25,7 @@ export const NavLink = ({
 
   return (
     <Link
-      href={href}
+      to={href}
       className={cn(
         buttonVariants({
           variant: active ? "secondary" : "outline",

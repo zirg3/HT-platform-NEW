@@ -2,7 +2,7 @@
 
 import { format, parseISO } from "date-fns"
 import { ru } from "date-fns/locale"
-import Link from "next/link"
+import { Link } from "@/lib/navigation"
 import { toZonedTime } from "date-fns-tz"
 import { Badge } from "@/components/ui/badge"
 import { DEFAULT_TIME_ZONE } from "@/lib/constants"
@@ -128,11 +128,11 @@ export const CalendarLessonCard = ({
       </button>
       {studentProfileHref ? (
         <Link
-          href={studentProfileHref}
+          to={studentProfileHref}
           className={cn(
             "flex shrink-0 items-center justify-center gap-0.5 border-t border-current/20 px-1 py-0.5",
             "text-[9px] font-medium leading-tight transition-colors",
-            "hover:bg-black/[0.04] focus-visible:bg-black/[0.04] focus-visible:outline-none"
+            "hover:bg-primary/12 focus-visible:bg-primary/12 focus-visible:outline-none"
           )}
           aria-label={`Профиль ученика ${counterparty}`}
         >

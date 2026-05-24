@@ -37,8 +37,16 @@ export const formatWeekRangeLabel = (weekStart: Date) => {
   return `${startLabel} — ${endLabel}`
 }
 
-export const formatDayHeader = (day: Date) =>
-  format(toZonedTime(day, DEFAULT_TIME_ZONE), "EEE d MMM", { locale: ru })
+export const formatDayHeader = (day: Date) => {
+  const zoned = toZonedTime(day, DEFAULT_TIME_ZONE)
+  const weekday = format(zoned, "EEE", { locale: ru }).toLocaleUpperCase("ru-RU")
+  const dateBody = format(zoned, "d MMMM", { locale: ru })
+  const capitalizedDate = dateBody.replace(
+    /(\d+\s+)([^\s])/u,
+    (_, prefix: string, first: string) => prefix + first.toUpperCase()
+  )
+  return `${weekday}, ${capitalizedDate}`
+}
 
 export const formatLessonTime = (iso: string) =>
   format(toZonedTime(parseISO(iso), DEFAULT_TIME_ZONE), "HH:mm", {

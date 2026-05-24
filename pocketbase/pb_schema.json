@@ -1,0 +1,302 @@
+{
+  "collections": [
+    {
+      "name": "courses",
+      "type": "base",
+      "listRule": "@request.auth.id != \"\"",
+      "viewRule": "@request.auth.id != \"\"",
+      "createRule": "@request.auth.role = \"admin\"",
+      "updateRule": "@request.auth.role = \"admin\"",
+      "deleteRule": "@request.auth.role = \"admin\"",
+      "schema": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "presentable": true,
+          "options": { "min": null, "max": null, "pattern": "" }
+        },
+        {
+          "name": "color",
+          "type": "text",
+          "required": true,
+          "options": { "min": null, "max": null, "pattern": "" }
+        }
+      ]
+    },
+    {
+      "name": "student_teacher",
+      "type": "base",
+      "listRule": "@request.auth.id != \"\" && (student = @request.auth.id || teacher = @request.auth.id || @request.auth.role ?= \"admin|manager\")",
+      "viewRule": "@request.auth.id != \"\" && (student = @request.auth.id || teacher = @request.auth.id || @request.auth.role ?= \"admin|manager\")",
+      "createRule": "@request.auth.role ?= \"admin|manager\"",
+      "updateRule": "@request.auth.role ?= \"admin|manager\"",
+      "deleteRule": "@request.auth.role ?= \"admin|manager\"",
+      "schema": [
+        {
+          "name": "student",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "_pb_users_auth_",
+            "cascadeDelete": true,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        },
+        {
+          "name": "teacher",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "_pb_users_auth_",
+            "cascadeDelete": true,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_student_teacher ON student_teacher (student, teacher)"
+      ]
+    },
+    {
+      "name": "lessons",
+      "type": "base",
+      "listRule": "@request.auth.id != \"\" && (@request.auth.role ?= \"admin|manager\" || teacher = @request.auth.id || @collection.lesson_participants.profile ?= @request.auth.id)",
+      "viewRule": "@request.auth.id != \"\" && (@request.auth.role ?= \"admin|manager\" || teacher = @request.auth.id || @collection.lesson_participants.profile ?= @request.auth.id)",
+      "createRule": "@request.auth.id != \"\" && (@request.auth.role ?= \"admin|manager|teacher\")",
+      "updateRule": "@request.auth.role ?= \"admin|manager\" || teacher = @request.auth.id",
+      "deleteRule": "@request.auth.role ?= \"admin|manager\" || teacher = @request.auth.id",
+      "schema": [
+        {
+          "name": "starts_at",
+          "type": "date",
+          "required": true,
+          "options": { "min": "", "max": "" }
+        },
+        {
+          "name": "duration_minutes",
+          "type": "number",
+          "required": true,
+          "options": { "min": 15, "max": 240, "noDecimal": true }
+        },
+        {
+          "name": "course",
+          "type": "relation",
+          "required": false,
+          "options": {
+            "collectionId": "pbc_courses",
+            "cascadeDelete": false,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        },
+        {
+          "name": "teacher",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "_pb_users_auth_",
+            "cascadeDelete": false,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "options": {
+            "maxSelect": 1,
+            "values": ["scheduled", "cancelled", "completed"]
+          }
+        },
+        {
+          "name": "note",
+          "type": "text",
+          "required": false,
+          "options": { "min": null, "max": 2000, "pattern": "" }
+        },
+        {
+          "name": "meeting_url",
+          "type": "url",
+          "required": false,
+          "options": { "exceptDomains": null, "onlyDomains": null }
+        },
+        {
+          "name": "recurrence_group_id",
+          "type": "text",
+          "required": false,
+          "options": { "min": null, "max": null, "pattern": "" }
+        },
+        {
+          "name": "cancelled_at",
+          "type": "date",
+          "required": false,
+          "options": { "min": "", "max": "" }
+        },
+        {
+          "name": "cancelled_by",
+          "type": "relation",
+          "required": false,
+          "options": {
+            "collectionId": "_pb_users_auth_",
+            "cascadeDelete": false,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        },
+        {
+          "name": "cancellation_reason",
+          "type": "text",
+          "required": false,
+          "options": { "min": null, "max": 1000, "pattern": "" }
+        },
+        {
+          "name": "rescheduled_at",
+          "type": "date",
+          "required": false,
+          "options": { "min": "", "max": "" }
+        },
+        {
+          "name": "rescheduled_by",
+          "type": "relation",
+          "required": false,
+          "options": {
+            "collectionId": "_pb_users_auth_",
+            "cascadeDelete": false,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        },
+        {
+          "name": "original_starts_at",
+          "type": "date",
+          "required": false,
+          "options": { "min": "", "max": "" }
+        }
+      ]
+    },
+    {
+      "name": "lesson_participants",
+      "type": "base",
+      "listRule": "@request.auth.id != \"\" && (profile = @request.auth.id || @request.auth.role ?= \"admin|manager\" || @collection.lessons.teacher ?= @request.auth.id)",
+      "viewRule": "@request.auth.id != \"\" && (profile = @request.auth.id || @request.auth.role ?= \"admin|manager\" || @collection.lessons.teacher ?= @request.auth.id)",
+      "createRule": "@request.auth.role ?= \"admin|manager\" || @collection.lessons.teacher ?= @request.auth.id",
+      "updateRule": "@request.auth.role ?= \"admin|manager\" || @collection.lessons.teacher ?= @request.auth.id",
+      "deleteRule": "@request.auth.role ?= \"admin|manager\" || @collection.lessons.teacher ?= @request.auth.id",
+      "schema": [
+        {
+          "name": "lesson",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "pbc_lessons",
+            "cascadeDelete": true,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        },
+        {
+          "name": "profile",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "_pb_users_auth_",
+            "cascadeDelete": true,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "homework",
+      "type": "base",
+      "listRule": "@request.auth.id != \"\"",
+      "viewRule": "@request.auth.id != \"\"",
+      "createRule": "@request.auth.id != \"\"",
+      "updateRule": "@request.auth.id != \"\"",
+      "deleteRule": "@request.auth.id != \"\"",
+      "schema": [
+        {
+          "name": "lesson",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "pbc_lessons",
+            "cascadeDelete": true,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "required": false,
+          "options": { "min": null, "max": 10000, "pattern": "" }
+        }
+      ]
+    },
+    {
+      "name": "lesson_audit",
+      "type": "base",
+      "listRule": "@request.auth.id != \"\"",
+      "viewRule": "@request.auth.id != \"\"",
+      "createRule": "@request.auth.id != \"\"",
+      "updateRule": null,
+      "deleteRule": null,
+      "schema": [
+        {
+          "name": "lesson",
+          "type": "relation",
+          "required": true,
+          "options": {
+            "collectionId": "pbc_lessons",
+            "cascadeDelete": true,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        },
+        {
+          "name": "action",
+          "type": "select",
+          "required": true,
+          "options": {
+            "maxSelect": 1,
+            "values": ["created", "updated", "cancelled"]
+          }
+        },
+        {
+          "name": "actor",
+          "type": "relation",
+          "required": false,
+          "options": {
+            "collectionId": "_pb_users_auth_",
+            "cascadeDelete": false,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        },
+        {
+          "name": "meta",
+          "type": "json",
+          "required": false,
+          "options": { "maxSize": 2000000 }
+        }
+      ]
+    }
+  ]
+}

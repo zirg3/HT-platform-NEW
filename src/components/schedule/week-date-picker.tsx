@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useNavigate } from "@/lib/navigation"
 import { CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -16,7 +16,7 @@ type WeekDatePickerProps = {
 }
 
 export const WeekDatePicker = ({ weekStart, pathname }: WeekDatePickerProps) => {
-  const router = useRouter()
+  const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleOpenPicker = () => {
@@ -38,7 +38,7 @@ export const WeekDatePicker = ({ weekStart, pathname }: WeekDatePickerProps) => 
     const [year, month, day] = value.split("-").map(Number)
     const picked = new Date(year, month - 1, day)
     const week = formatWeekParam(getWeekStartMonday(picked))
-    router.push(`${pathname}?week=${week}`)
+    navigate({ to: pathname, search: { week } })
   }
 
   return (

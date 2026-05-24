@@ -48,7 +48,7 @@ export const AgendaWithDialog = ({
 
   return (
     <>
-      <section className="flex flex-col rounded-2xl border border-border/70 bg-white/30 p-4 sm:p-5">
+      <section className="flex flex-col rounded-lg border border-border/70 bg-white/30 p-4 sm:p-5">
         <AgendaList
           title="Предстоящие занятия"
           description="Ближайшие уроки"
@@ -58,7 +58,7 @@ export const AgendaWithDialog = ({
           onSelectLesson={handleSelectLesson}
         />
       </section>
-      <section className="flex flex-col rounded-2xl border border-border/70 bg-white/30 p-4 sm:p-5">
+      <section className="flex flex-col rounded-lg border border-border/70 bg-white/30 p-4 sm:p-5">
         <AgendaList
           title="Прошедшие занятия"
           description="История"

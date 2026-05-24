@@ -1,8 +1,8 @@
 "use client"
 
 import { addWeeks, format, parseISO } from "date-fns"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { Link } from "@/lib/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { useMemo, useState, useTransition } from "react"
 import {
   cancelLessonAction,
@@ -11,10 +11,12 @@ import {
   deleteLessonSeriesAction,
   rescheduleLessonAction,
   saveLessonAction,
-} from "@/app/actions/schedule"
+} from "@/lib/actions/schedule"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { CollapsiblePanel } from "@/components/ui/collapsible-panel"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Dialog,
   DialogContent,
@@ -25,6 +27,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import {
@@ -37,6 +40,7 @@ import { formatCancellationSummary, formatRescheduleSummary } from "@/lib/schedu
 import { canCompleteLessonNow } from "@/lib/schedule/permissions"
 import { getLessonAppearance } from "@/lib/schedule/lesson-appearance"
 import { safeLessonMeetingHref } from "@/lib/schedule/meeting-link"
+import { scheduleKeys } from "@/lib/schedule/query-keys"
 import type {
   CourseRow,
   LessonRow,
@@ -45,7 +49,7 @@ import type {
 } from "@/lib/schedule/types"
 
 const selectClassName = cn(
-  "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm",
+  "form-field flex h-8 w-full rounded-md border border-border bg-white/85 px-2.5 text-sm",
   "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none",
   "disabled:pointer-events-none disabled:opacity-50"
 )
@@ -75,13 +79,18 @@ export const LessonDialog = ({
   permissions,
   profileId,
 }: LessonDialogProps) => {
-  const router = useRouter()
+  const queryClient = useQueryClient()
+  const invalidateSchedule = () =>
+    void queryClient.invalidateQueries({ queryKey: scheduleKeys.all })
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ error?: string; warning?: string }>({})
   const [weeklyRepeat, setWeeklyRepeat] = useState(false)
   const [showReschedule, setShowReschedule] = useState(false)
   const [showCancelForm, setShowCancelForm] = useState(false)
   const [cancelReason, setCancelReason] = useState("")
+  const [confirmAction, setConfirmAction] = useState<"delete" | "deleteSeries" | null>(
+    null
+  )
 
   const isEdit = Boolean(lesson)
   const isCancelled = lesson?.status === "cancelled"
@@ -137,7 +146,10 @@ export const LessonDialog = ({
     startTransition(async () => {
       const result = await saveLessonAction(formData)
       setMessage(result)
-      if (!result.error) onOpenChange(false)
+      if (!result.error) {
+        invalidateSchedule()
+        onOpenChange(false)
+      }
     })
   }
 
@@ -151,7 +163,10 @@ export const LessonDialog = ({
     startTransition(async () => {
       const result = await cancelLessonAction(fd)
       setMessage(result)
-      if (!result.error) onOpenChange(false)
+      if (!result.error) {
+        invalidateSchedule()
+        onOpenChange(false)
+      }
     })
   }
 
@@ -167,43 +182,30 @@ export const LessonDialog = ({
       if (!result.error) {
         setShowReschedule(false)
         setMessage({})
-        router.refresh()
+        invalidateSchedule()
         return
       }
       setMessage(result)
     })
   }
 
-  const handleDeleteSeries = () => {
-    if (!lesson?.recurrence_group_id) return
-    if (
-      !window.confirm(
-        "Удалить все занятия этой еженедельной серии? Действие нельзя отменить."
-      )
-    ) {
-      return
-    }
-    const fd = new FormData()
-    fd.set("lesson_id", lesson.id)
-    fd.set("week", week)
-    startTransition(async () => {
-      const result = await deleteLessonSeriesAction(fd)
-      setMessage(result)
-      if (!result.error) onOpenChange(false)
-    })
-  }
+  const runConfirmAction = async () => {
+    if (!lesson || !confirmAction) return
 
-  const handleDelete = () => {
-    if (!lesson) return
-    if (!window.confirm("Удалить этот урок?")) return
     const fd = new FormData()
     fd.set("lesson_id", lesson.id)
     fd.set("week", week)
-    startTransition(async () => {
-      const result = await deleteLessonAction(fd)
-      setMessage(result)
-      if (!result.error) onOpenChange(false)
-    })
+
+    const result =
+      confirmAction === "deleteSeries"
+        ? await deleteLessonSeriesAction(fd)
+        : await deleteLessonAction(fd)
+
+    setMessage(result)
+    if (result.error) throw new Error(result.error)
+
+    invalidateSchedule()
+    onOpenChange(false)
   }
 
   const handleComplete = (e: React.FormEvent<HTMLFormElement>) => {
@@ -216,7 +218,10 @@ export const LessonDialog = ({
     startTransition(async () => {
       const result = await completeLessonAction(formData)
       setMessage(result)
-      if (!result.error) onOpenChange(false)
+      if (!result.error) {
+        invalidateSchedule()
+        onOpenChange(false)
+      }
     })
   }
 
@@ -227,6 +232,7 @@ export const LessonDialog = ({
       setShowReschedule(false)
       setShowCancelForm(false)
       setCancelReason("")
+      setConfirmAction(null)
     }
     onOpenChange(nextOpen)
   }
@@ -442,17 +448,16 @@ export const LessonDialog = ({
           </div>
           {!isEdit && canSave ? (
             <div className="space-y-3 rounded-lg border border-border p-3">
-              <div className="flex items-start gap-2">
-                <input
-                  type="checkbox"
+              <div className="flex items-start gap-2.5">
+                <Switch
                   id="recurring_weekly"
                   name="recurring_weekly"
                   value="on"
                   checked={weeklyRepeat}
-                  onChange={(e) => setWeeklyRepeat(e.target.checked)}
+                  onCheckedChange={setWeeklyRepeat}
                   disabled={isPending}
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-input"
                   aria-describedby="recurring-hint"
+                  className="mt-0.5 shrink-0"
                 />
                 <div className="space-y-0.5">
                   <Label htmlFor="recurring_weekly" className="cursor-pointer font-normal">
@@ -463,23 +468,23 @@ export const LessonDialog = ({
                   </p>
                 </div>
               </div>
-              {weeklyRepeat ? (
+              <CollapsiblePanel open={weeklyRepeat}>
                 <div className="space-y-2">
                   <Label htmlFor="recurrence_until">Повторять до даты включительно</Label>
                   <Input
                     id="recurrence_until"
-                    name="recurrence_until"
+                    name={weeklyRepeat ? "recurrence_until" : undefined}
                     type="date"
-                    required
+                    required={weeklyRepeat}
                     min={defaults.date}
                     defaultValue={recurrenceDefaultUntil}
-                    disabled={isPending}
+                    disabled={!weeklyRepeat || isPending}
                   />
                   <p className="text-xs text-muted-foreground">
                     Не больше {MAX_WEEKLY_OCCURRENCES} занятий за одно создание
                   </p>
                 </div>
-              ) : null}
+              </CollapsiblePanel>
             </div>
           ) : null}
           <div className="space-y-2">
@@ -544,119 +549,125 @@ export const LessonDialog = ({
           </p>
         ) : null}
 
-        {canRescheduleThis && !showReschedule ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            disabled={isPending}
-            onClick={() => {
-              setShowReschedule(true)
-              setShowCancelForm(false)
-            }}
-          >
-            Перенести занятие
-          </Button>
-        ) : null}
-
-        {showReschedule && canRescheduleThis && lesson ? (
-          <form
-            onSubmit={handleReschedule}
-            className="space-y-3 rounded-lg border border-orange-200 bg-orange-50/50 p-3"
-          >
-            <p className="text-sm font-medium">Новая дата и время</p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="reschedule_date">Дата</Label>
-                <Input
-                  id="reschedule_date"
-                  name="date"
-                  type="date"
-                  defaultValue={defaults.date}
-                  required
-                  disabled={isPending}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reschedule_time">Время</Label>
-                <Input
-                  id="reschedule_time"
-                  name="time"
-                  type="time"
-                  defaultValue={defaults.time}
-                  required
-                  disabled={isPending}
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button type="submit" disabled={isPending} aria-busy={isPending}>
-                Сохранить перенос
-              </Button>
+        {canRescheduleThis && lesson ? (
+          <>
+            <CollapsiblePanel open={!showReschedule}>
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
+                className="w-full"
                 disabled={isPending}
-                onClick={() => setShowReschedule(false)}
+                onClick={() => {
+                  setShowReschedule(true)
+                  setShowCancelForm(false)
+                }}
               >
-                Отмена
+                Перенести занятие
               </Button>
-            </div>
-          </form>
+            </CollapsiblePanel>
+            <CollapsiblePanel open={showReschedule} innerClassName="pt-2">
+              <form
+                onSubmit={handleReschedule}
+                className="space-y-3 rounded-lg border border-orange-200 bg-orange-50/50 p-3"
+              >
+                <p className="text-sm font-medium">Новая дата и время</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="reschedule_date">Дата</Label>
+                    <Input
+                      id="reschedule_date"
+                      name="date"
+                      type="date"
+                      defaultValue={defaults.date}
+                      required
+                      disabled={isPending}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reschedule_time">Время</Label>
+                    <Input
+                      id="reschedule_time"
+                      name="time"
+                      type="time"
+                      defaultValue={defaults.time}
+                      required
+                      disabled={isPending}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={isPending} aria-busy={isPending}>
+                    Сохранить перенос
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={isPending}
+                    onClick={() => setShowReschedule(false)}
+                  >
+                    Отмена
+                  </Button>
+                </div>
+              </form>
+            </CollapsiblePanel>
+          </>
         ) : null}
 
         {isEdit && lesson && permissions.canCancel && !isCancelled && !isCompleted ? (
-          showCancelForm ? (
-            <form
-              onSubmit={handleCancelLesson}
-              className="space-y-3 rounded-lg border border-red-200 bg-red-50/50 p-3"
-            >
-              <p className="text-sm font-medium">Отмена урока</p>
-              <div className="space-y-2">
-                <Label htmlFor="cancellation_reason">Причина отмены</Label>
-                <Textarea
-                  id="cancellation_reason"
-                  name="cancellation_reason"
-                  rows={2}
-                  placeholder="Например: болезнь, перенос на другой день"
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  disabled={isPending}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  variant="destructive"
-                  disabled={isPending}
-                  aria-busy={isPending}
-                >
-                  Подтвердить отмену
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={isPending}
-                  onClick={() => setShowCancelForm(false)}
-                >
-                  Назад
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={isPending}
-              onClick={() => {
-                setShowCancelForm(true)
-                setShowReschedule(false)
-              }}
-            >
-              Отменить урок
-            </Button>
-          )
+          <>
+            <CollapsiblePanel open={!showCancelForm}>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={isPending}
+                onClick={() => {
+                  setShowCancelForm(true)
+                  setShowReschedule(false)
+                }}
+              >
+                Отменить урок
+              </Button>
+            </CollapsiblePanel>
+            <CollapsiblePanel open={showCancelForm} innerClassName="pt-2">
+              <form
+                onSubmit={handleCancelLesson}
+                className="space-y-3 rounded-lg border border-red-200 bg-red-50/50 p-3"
+              >
+                <p className="text-sm font-medium">Отмена урока</p>
+                <div className="space-y-2">
+                  <Label htmlFor="cancellation_reason">Причина отмены</Label>
+                  <Textarea
+                    id="cancellation_reason"
+                    name="cancellation_reason"
+                    rows={2}
+                    placeholder="Например: болезнь, перенос на другой день"
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    disabled={isPending}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    disabled={isPending}
+                    aria-busy={isPending}
+                  >
+                    Подтвердить отмену
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={isPending}
+                    onClick={() => setShowCancelForm(false)}
+                  >
+                    Назад
+                  </Button>
+                </div>
+              </form>
+            </CollapsiblePanel>
+          </>
         ) : null}
 
         {isEdit &&
@@ -669,7 +680,7 @@ export const LessonDialog = ({
             className="w-full border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10"
             disabled={isPending}
             aria-busy={isPending}
-            onClick={handleDeleteSeries}
+            onClick={() => setConfirmAction("deleteSeries")}
           >
             Удалить всю серию
           </Button>
@@ -682,12 +693,31 @@ export const LessonDialog = ({
             className="w-full"
             disabled={isPending}
             aria-busy={isPending}
-            onClick={handleDelete}
+            onClick={() => setConfirmAction("delete")}
           >
             Удалить урок
           </Button>
         ) : null}
       </DialogContent>
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setConfirmAction(null)
+        }}
+        title={
+          confirmAction === "deleteSeries"
+            ? "Удалить всю серию?"
+            : "Удалить урок?"
+        }
+        description={
+          confirmAction === "deleteSeries"
+            ? "Все занятия этой еженедельной серии будут удалены без возможности восстановления."
+            : "Урок будет удалён без возможности восстановления."
+        }
+        confirmLabel="Удалить"
+        onConfirm={runConfirmAction}
+      />
     </Dialog>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { Link } from "@/lib/navigation"
 import { Headphones, Plus, Sparkles, X } from "lucide-react"
 import { toZonedTime } from "date-fns-tz"
 import { SidebarNavLink } from "@/components/layout/sidebar-nav-link"
@@ -39,7 +39,7 @@ export const AppSidebar = ({ profile, open, onClose }: AppSidebarProps) => {
       />
       <aside
         className={cn(
-          "glass-sidebar fixed inset-y-3 left-3 z-50 flex w-[min(100%,17.5rem)] flex-col rounded-3xl border shadow-lg transition-transform duration-200 ease-out sm:inset-y-4 sm:left-4",
+          "glass-sidebar fixed inset-y-3 left-3 z-50 flex w-[min(100%,17.5rem)] flex-col rounded-xl border shadow-lg transition-transform duration-200 ease-out sm:inset-y-4 sm:left-4",
           "lg:static lg:z-auto lg:w-56 lg:shrink-0 lg:translate-x-0 xl:w-60",
           open ? "translate-x-0" : "-translate-x-[110%] lg:translate-x-0"
         )}
@@ -47,11 +47,11 @@ export const AppSidebar = ({ profile, open, onClose }: AppSidebarProps) => {
       >
         <div className="flex items-center justify-between gap-2 border-b border-sidebar-border/80 px-4 py-4">
           <Link
-            href={homeHref}
-            className="flex min-w-0 items-center gap-2.5 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            to={homeHref}
+            className="flex min-w-0 items-center gap-2.5 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             onClick={onClose}
           >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
               <Sparkles className="size-4" aria-hidden />
             </span>
             <span className="min-w-0">
@@ -63,7 +63,7 @@ export const AppSidebar = ({ profile, open, onClose }: AppSidebarProps) => {
           </Link>
           <button
             type="button"
-            className="inline-flex size-8 items-center justify-center rounded-lg hover:bg-muted lg:hidden"
+            className="inline-flex size-8 cursor-pointer items-center justify-center rounded-md hover:bg-primary/12 lg:hidden"
             onClick={onClose}
             aria-label="Закрыть меню"
           >
@@ -87,7 +87,8 @@ export const AppSidebar = ({ profile, open, onClose }: AppSidebarProps) => {
               Быстрые действия
             </p>
             <Link
-              href={`${homeHref}?week=${weekToday}`}
+              to={homeHref}
+              search={{ week: weekToday }}
               onClick={onClose}
               className={cn(
                 buttonVariants({ size: "sm" }),
@@ -103,7 +104,7 @@ export const AppSidebar = ({ profile, open, onClose }: AppSidebarProps) => {
           </div>
         ) : null}
         <div className="border-t border-sidebar-border/80 p-3">
-          <div className="flex items-start gap-2 rounded-xl bg-sidebar-accent/40 px-2.5 py-2">
+          <div className="flex items-start gap-2 rounded-md bg-sidebar-accent/40 px-2.5 py-2">
             <Headphones className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
             <div>
               <p className="text-xs font-medium text-foreground">Нужна помощь?</p>

@@ -2,11 +2,10 @@
 
 import { useEffect, useId, useRef, useState } from "react"
 import { ChevronDown, LogOut } from "lucide-react"
-import { logoutAction } from "@/app/login/actions"
 import { UserAvatarPlaceholder } from "@/components/layout/user-avatar-placeholder"
 import { Button } from "@/components/ui/button"
 import { ROLE_LABELS } from "@/lib/auth/paths"
-import type { Profile } from "@/lib/auth/session"
+import { useAuth } from "@/providers/auth-provider"
 import { cn } from "@/lib/utils"
 
 type AccountMenuProps = {
@@ -14,6 +13,7 @@ type AccountMenuProps = {
 }
 
 export const AccountMenu = ({ profile }: AccountMenuProps) => {
+  const { signOut } = useAuth()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
@@ -53,7 +53,7 @@ export const AccountMenu = ({ profile }: AccountMenuProps) => {
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        className="flex items-center gap-2.5 rounded-lg px-1 py-1 text-left transition-colors hover:bg-black/[0.03] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:gap-3 sm:px-2"
+        className="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-1 text-left transition-colors hover:bg-primary/12 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:gap-3 sm:px-2"
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
         aria-expanded={open}
@@ -82,7 +82,7 @@ export const AccountMenu = ({ profile }: AccountMenuProps) => {
         <div
           id={menuId}
           role="menu"
-          className="glass-panel absolute top-full right-0 z-50 mt-2 min-w-[12rem] overflow-hidden rounded-xl border border-border py-1 shadow-lg"
+          className="glass-panel absolute top-full right-0 z-50 mt-2 min-w-[12rem] overflow-hidden rounded-md border border-border py-1 shadow-lg"
         >
           <div className="border-b border-border/60 px-3 py-2 sm:hidden">
             <p className="truncate text-sm font-semibold">{displayName}</p>
@@ -90,19 +90,23 @@ export const AccountMenu = ({ profile }: AccountMenuProps) => {
               {ROLE_LABELS[profile.role]}
             </p>
           </div>
-          <form action={logoutAction} className="p-1">
+          <div className="p-1">
             <Button
-              type="submit"
+              type="button"
               variant="ghost"
               size="sm"
               className="w-full justify-start gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
               role="menuitem"
-              onClick={() => setOpen(false)}
+              onClick={async () => {
+                setOpen(false)
+                await signOut()
+                window.location.assign("/login")
+              }}
             >
               <LogOut className="size-4" aria-hidden />
               Выйти
             </Button>
-          </form>
+          </div>
         </div>
       ) : null}
     </div>

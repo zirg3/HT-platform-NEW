@@ -1,20 +1,20 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { Link, usePathname } from "@/lib/navigation"
 import { useMemo, useState } from "react"
-import { format, isSameDay, parseISO } from "date-fns"
-import { ru } from "date-fns/locale"
+import { isSameDay, parseISO } from "date-fns"
 import { toZonedTime } from "date-fns-tz"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { LessonBlock } from "@/components/schedule/lesson-block"
 import { LessonDialog } from "@/components/schedule/lesson-dialog"
 import { CalendarLegend } from "@/components/schedule/calendar-legend"
+import { WeekCalendarGridSkeleton } from "@/components/schedule/week-calendar-grid-skeleton"
 import { WeekDatePicker } from "@/components/schedule/week-date-picker"
 import { buttonVariants } from "@/components/ui/button"
 import { DEFAULT_TIME_ZONE } from "@/lib/constants"
 import {
   formatWeekParam,
+  formatDayHeader,
   getHourLabels,
   getWeekDays,
   SCHEDULE_END_HOUR,
@@ -39,6 +39,7 @@ type WeekCalendarProps = {
   permissions: SchedulePermissions
   profileId: string
   lessonContext?: "student" | "teacher"
+  isGridLoading?: boolean
 }
 
 export const WeekCalendar = ({
@@ -50,6 +51,7 @@ export const WeekCalendar = ({
   permissions,
   profileId,
   lessonContext = "teacher",
+  isGridLoading = false,
 }: WeekCalendarProps) => {
   const pathname = usePathname()
   const weekStart = useMemo(() => new Date(weekStartIso), [weekStartIso])
@@ -110,7 +112,8 @@ export const WeekCalendar = ({
           </span>
           <div className="flex items-center gap-1">
             <Link
-              href={`${pathname}?week=${prevWeek}`}
+              to={pathname}
+              search={{ week: prevWeek }}
               className={cn(
                 buttonVariants({ variant: "outline", size: "icon-sm" }),
                 "glass-panel border-border/60"
@@ -120,7 +123,8 @@ export const WeekCalendar = ({
               <ChevronLeft className="size-4" />
             </Link>
             <Link
-              href={`${pathname}?week=${weekParam}`}
+              to={pathname}
+              search={{ week: weekParam }}
               className={cn(
                 buttonVariants({ variant: "outline", size: "sm" }),
                 "glass-panel border-border/60"
@@ -129,7 +133,8 @@ export const WeekCalendar = ({
               Сегодня
             </Link>
             <Link
-              href={`${pathname}?week=${nextWeek}`}
+              to={pathname}
+              search={{ week: nextWeek }}
               className={cn(
                 buttonVariants({ variant: "outline", size: "icon-sm" }),
                 "glass-panel border-border/60"
@@ -150,46 +155,51 @@ export const WeekCalendar = ({
       ) : null}
 
       <div
-        className="overflow-x-auto rounded-2xl border border-border/70 bg-white/30"
+        className="overflow-x-auto rounded-lg border border-border/70 bg-white/30"
         tabIndex={0}
         aria-label="Недельное расписание, прокрутите горизонтально на узком экране"
       >
         <div className="min-w-[720px]">
-          <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] divide-x divide-border/80 border-b border-border/80 bg-white/45">
+          <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] divide-x divide-border/70 border-b border-border/80 bg-white/45">
             <div className="p-2" />
             {days.map((day) => {
               const key = formatWeekParam(day)
               const zonedDay = toZonedTime(day, DEFAULT_TIME_ZONE)
               const isToday = isSameDay(zonedDay, todayZoned)
-              const dayNum = format(zonedDay, "d", { locale: ru })
-              const dayName = format(zonedDay, "EEE", { locale: ru })
+              const dayLabel = formatDayHeader(day)
 
               return (
                 <div
                   key={key}
-                  className={cn(
-                    "p-2 text-center",
-                    isToday && "calendar-cell-today"
-                  )}
+                  className={cn("p-2 text-center", isToday && "calendar-cell-today")}
                 >
-                  <p className="text-[10px] uppercase text-muted-foreground">
-                    {dayName}
-                  </p>
                   <p
                     className={cn(
-                      "mx-auto mt-0.5 flex size-7 items-center justify-center rounded-full text-sm font-semibold",
+                      "mx-auto inline-block text-xs leading-snug font-semibold",
                       isToday
-                        ? "bg-primary text-primary-foreground"
+                        ? "calendar-today-badge rounded-full px-2.5 py-1"
                         : "text-foreground"
                     )}
                   >
-                    {dayNum}
+                    {dayLabel}
                   </p>
                 </div>
               )
             })}
           </div>
-          <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))] divide-x divide-border/80">
+          <div className="relative">
+            {isGridLoading ? (
+              <div className="absolute inset-0 z-10 bg-white/45 backdrop-blur-[1px]">
+                <WeekCalendarGridSkeleton className="h-full" />
+              </div>
+            ) : null}
+            <div
+              className={cn(
+                "grid grid-cols-[56px_repeat(7,minmax(0,1fr))] divide-x divide-border/70 transition-opacity duration-200",
+                isGridLoading && "pointer-events-none opacity-35"
+              )}
+              aria-busy={isGridLoading}
+            >
             <div
               className="relative bg-white/25"
               style={{ height: gridHeight }}
@@ -229,7 +239,7 @@ export const WeekCalendar = ({
                         className={cn(
                           "absolute right-0 left-0 border-t border-border/80",
                           permissions.canCreate &&
-                            "cursor-pointer hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+                            "cursor-pointer hover:bg-primary/10 focus-visible:bg-primary/10 focus-visible:outline-none"
                         )}
                         style={{ top: i * SCHEDULE_SLOT_PX, height: SCHEDULE_SLOT_PX }}
                         onClick={() => handleSlotClick(dayKey, hour)}
@@ -249,6 +259,7 @@ export const WeekCalendar = ({
                 </div>
               )
             })}
+            </div>
           </div>
         </div>
         <CalendarLegend />

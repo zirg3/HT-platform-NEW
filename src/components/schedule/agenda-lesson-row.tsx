@@ -81,7 +81,7 @@ export const AgendaLessonRow = ({
   )
 
   const shellClass = cn(
-    "relative w-full rounded-2xl border-2 px-3.5 py-3 transition-all",
+    "relative w-full rounded-lg border-2 px-3.5 py-3 transition-all",
     appearance.bg,
     appearance.border,
     appearance.text,

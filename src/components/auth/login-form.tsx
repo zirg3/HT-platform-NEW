@@ -1,9 +1,5 @@
-"use client"
-
-import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { Link } from "@/lib/navigation"
 import { useCallback, useRef, useState, useTransition } from "react"
-import { resolveLoginRoleAction } from "@/app/login/resolve-role"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -15,33 +11,18 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SITE_NAME } from "@/lib/constants"
-import { createClient } from "@/lib/supabase/client"
-import { getSupabasePublicEnv } from "@/lib/supabase/public-env"
+import { getPocketBaseEnv } from "@/lib/pocketbase/env"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/providers/auth-provider"
 
 type LoginFormProps = {
   nextPath?: string
   passwordResetSuccess?: boolean
 }
 
-const mapAuthError = (message: string) => {
-  const lower = message.toLowerCase()
-  if (
-    lower.includes("invalid") ||
-    lower.includes("credentials") ||
-    lower.includes("email")
-  ) {
-    return "Неверный email или пароль"
-  }
-  if (lower.includes("fetch") || lower.includes("network")) {
-    return "Нет связи с Supabase. Проверьте интернет и .env.local."
-  }
-  return message
-}
-
 export const LoginForm = ({ nextPath, passwordResetSuccess }: LoginFormProps) => {
-  const router = useRouter()
-  const envCheck = getSupabasePublicEnv()
+  const { signIn, resolveRedirectPath } = useAuth()
+  const envCheck = getPocketBaseEnv()
   const [error, setError] = useState<string | undefined>(
     envCheck.ok ? undefined : envCheck.message
   )
@@ -76,47 +57,19 @@ export const LoginForm = ({ nextPath, passwordResetSuccess }: LoginFormProps) =>
       setError(undefined)
 
       startTransition(async () => {
-        try {
-          const supabase = createClient()
+        const result = await signIn(email, password)
 
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          })
-
-          if (signInError) {
-            setError(mapAuthError(signInError.message))
-            isSubmittingRef.current = false
-            return
-          }
-
-          router.refresh()
-
-          const resolved = await resolveLoginRoleAction(nextPath)
-
-          if (resolved.error || !resolved.redirectTo) {
-            await supabase.auth.signOut()
-            setError(
-              resolved.error ??
-                "Профиль не найден. Обратитесь к администратору."
-            )
-            isSubmittingRef.current = false
-            return
-          }
-
-          setIsRedirecting(true)
-          window.location.assign(resolved.redirectTo)
-        } catch (err) {
-          const message =
-            err instanceof Error ? mapAuthError(err.message) : null
-          setError(
-            message ?? "Ошибка соединения. Проверьте .env.local и интернет."
-          )
+        if (result.error) {
+          setError(result.error)
           isSubmittingRef.current = false
+          return
         }
+
+        setIsRedirecting(true)
+        window.location.assign(resolveRedirectPath(nextPath))
       })
     },
-    [envCheck.ok, isRedirecting, nextPath, router]
+    [envCheck.ok, isRedirecting, nextPath, resolveRedirectPath, signIn]
   )
 
   const busy = isPending || isRedirecting
@@ -152,7 +105,7 @@ export const LoginForm = ({ nextPath, passwordResetSuccess }: LoginFormProps) =>
         <CardContent>
           {passwordResetSuccess ? (
             <p
-              className="mb-4 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm"
+              className="mb-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm"
               role="status"
             >
               Пароль обновлён. Войдите с новым паролем.
@@ -188,7 +141,7 @@ export const LoginForm = ({ nextPath, passwordResetSuccess }: LoginFormProps) =>
             </div>
             <div className="flex justify-end">
               <Link
-                href="/login/forgot-password"
+                to="/login/forgot-password"
                 className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
                 Забыли пароль?
@@ -196,7 +149,7 @@ export const LoginForm = ({ nextPath, passwordResetSuccess }: LoginFormProps) =>
             </div>
             {error ? (
               <p
-                className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
                 role="alert"
               >
                 {error}

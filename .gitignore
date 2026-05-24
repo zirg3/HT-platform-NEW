@@ -13,12 +13,21 @@
 # testing
 /coverage
 
-# next.js
+# vite
+/dist
+
+# pocketbase local data
+/pocketbase/pb_data
+/pocketbase/bin
+
+# next.js (legacy)
 /.next/
 /out/
+next-env.d.ts
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -39,7 +48,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 # Editor / IDE Specific
 .vscode/

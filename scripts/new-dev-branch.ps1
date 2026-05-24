@@ -15,4 +15,4 @@ $next = if ($numbers) { ($numbers | Measure-Object -Maximum).Maximum + 1 } else 
 $name = "dev-0.$next"
 
 git checkout -b $name
-Write-Host "Ветка $name создана от dev. Работайте здесь, затем PR в dev."
+Write-Host "Ветка $name создана от dev. PR в dev."

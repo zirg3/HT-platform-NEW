@@ -1,11 +1,6 @@
-"use client"
-
-import Link from "next/link"
-import { useActionState } from "react"
-import {
-  resetPasswordAction,
-  type ResetPasswordState,
-} from "@/app/login/reset-password/actions"
+import { Link, useNavigate } from "@/lib/navigation"
+import { useState, useTransition } from "react"
+import { confirmPasswordReset } from "@/lib/actions/auth"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
@@ -19,13 +14,34 @@ import { Label } from "@/components/ui/label"
 import { SITE_NAME } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 
-const initialState: ResetPasswordState = {}
+type ResetPasswordFormProps = {
+  token?: string
+}
 
-export const ResetPasswordForm = () => {
-  const [state, formAction, isPending] = useActionState(
-    resetPasswordAction,
-    initialState
-  )
+export const ResetPasswordForm = ({ token }: ResetPasswordFormProps) => {
+  const navigate = useNavigate()
+  const [error, setError] = useState<string | undefined>()
+  const [isPending, startTransition] = useTransition()
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const password = String(formData.get("password") ?? "")
+    const passwordConfirm = String(formData.get("password_confirm") ?? "")
+
+    startTransition(async () => {
+      const result = await confirmPasswordReset(
+        token ?? "",
+        password,
+        passwordConfirm
+      )
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      navigate({ to: "/login", search: { reset: "success" } })
+    })
+  }
 
   return (
     <Card className="w-full max-w-md border-border/80 shadow-sm">
@@ -37,7 +53,7 @@ export const ResetPasswordForm = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="space-y-4" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="space-y-2">
             <Label htmlFor="password">Новый пароль</Label>
             <Input
@@ -62,12 +78,12 @@ export const ResetPasswordForm = () => {
               aria-required
             />
           </div>
-          {state.error ? (
+          {error ? (
             <p
               className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
               role="alert"
             >
-              {state.error}
+              {error}
             </p>
           ) : null}
           <Button
@@ -79,10 +95,10 @@ export const ResetPasswordForm = () => {
             {isPending ? "Сохранение…" : "Сохранить пароль"}
           </Button>
           <Link
-            href="/login"
+            to="/login"
             className={cn(buttonVariants({ variant: "ghost" }), "w-full")}
           >
-            Ко входу
+            Вернуться ко входу
           </Link>
         </form>
       </CardContent>

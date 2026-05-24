@@ -1,13 +1,15 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useState, useTransition } from "react"
 import {
   assignStudentTeacherAction,
   removeAssignmentAction,
   updateAssignmentAction,
-} from "@/app/actions/assignments"
+} from "@/lib/actions/assignments"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Card,
   CardContent,
@@ -21,7 +23,7 @@ import type { ProfileBrief } from "@/lib/schedule/types"
 import type { StudentTeacherRow } from "@/lib/users/types"
 
 const selectClassName = cn(
-  "flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm",
+  "form-field flex h-8 w-full rounded-md border border-border bg-white/85 px-2.5 text-sm",
   "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none",
   "disabled:pointer-events-none disabled:opacity-50"
 )
@@ -40,9 +42,14 @@ export const AssignmentsManager = ({
   students,
   teachers,
 }: AssignmentsManagerProps) => {
+  const queryClient = useQueryClient()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | undefined>()
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [removeAssignmentId, setRemoveAssignmentId] = useState<string | null>(null)
+
+  const refresh = () =>
+    void queryClient.invalidateQueries({ queryKey: ["assignments-page"] })
 
   const handleAssign = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -51,7 +58,10 @@ export const AssignmentsManager = ({
     startTransition(async () => {
       const result = await assignStudentTeacherAction(new FormData(form))
       if (result.error) setError(result.error)
-      else form.reset()
+      else {
+        form.reset()
+        refresh()
+      }
     })
   }
 
@@ -61,21 +71,24 @@ export const AssignmentsManager = ({
     startTransition(async () => {
       const result = await updateAssignmentAction(new FormData(e.currentTarget))
       if (result.error) setError(result.error)
-      else setEditingId(null)
+      else {
+        setEditingId(null)
+        refresh()
+      }
     })
   }
 
-  const handleRemove = (assignmentId: string) => {
-    if (!window.confirm("Удалить привязку ученика и преподавателя?")) {
-      return
-    }
+  const confirmRemoveAssignment = async () => {
+    if (!removeAssignmentId) return
     const fd = new FormData()
-    fd.set("assignment_id", assignmentId)
-    startTransition(async () => {
-      const result = await removeAssignmentAction(fd)
-      if (result.error) setError(result.error)
-      else if (editingId === assignmentId) setEditingId(null)
-    })
+    fd.set("assignment_id", removeAssignmentId)
+    const result = await removeAssignmentAction(fd)
+    if (result.error) {
+      setError(result.error)
+      throw new Error(result.error)
+    }
+    if (editingId === removeAssignmentId) setEditingId(null)
+    refresh()
   }
 
   return (
@@ -233,7 +246,7 @@ export const AssignmentsManager = ({
                         size="sm"
                         variant="destructive"
                         disabled={isPending}
-                        onClick={() => handleRemove(link.id)}
+                        onClick={() => setRemoveAssignmentId(link.id)}
                       >
                         Удалить
                       </Button>
@@ -245,6 +258,17 @@ export const AssignmentsManager = ({
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={removeAssignmentId !== null}
+        onOpenChange={(open) => {
+          if (!open) setRemoveAssignmentId(null)
+        }}
+        title="Удалить привязку?"
+        description="Связь между учеником и преподавателем будет удалена."
+        confirmLabel="Удалить"
+        onConfirm={confirmRemoveAssignment}
+      />
     </div>
   )
 }

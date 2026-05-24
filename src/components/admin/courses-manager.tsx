@@ -1,9 +1,12 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useState, useTransition } from "react"
-import { deleteCourseAction, saveCourseAction } from "@/app/actions/courses"
+import { AdminAlignedButtonCell } from "@/components/admin/admin-form-align"
+import { deleteCourseAction, saveCourseAction } from "@/lib/actions/courses"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Card,
   CardContent,
@@ -14,21 +17,32 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { CourseRow } from "@/lib/schedule/types"
+import { scheduleKeys } from "@/lib/schedule/query-keys"
 
 type CoursesManagerProps = {
   courses: CourseRow[]
 }
 
 export const CoursesManager = ({ courses }: CoursesManagerProps) => {
+  const queryClient = useQueryClient()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | undefined>()
+  const [deleteCourseId, setDeleteCourseId] = useState<string | null>(null)
+
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["courses"] })
+    void queryClient.invalidateQueries({ queryKey: scheduleKeys.all })
+  }
 
   const runSave = (formData: FormData, reset?: () => void) => {
     setError(undefined)
     startTransition(async () => {
       const result = await saveCourseAction(formData)
       if (result.error) setError(result.error)
-      else reset?.()
+      else {
+        reset?.()
+        refresh()
+      }
     })
   }
 
@@ -43,16 +57,16 @@ export const CoursesManager = ({ courses }: CoursesManagerProps) => {
     runSave(new FormData(e.currentTarget))
   }
 
-  const handleDelete = (courseId: string) => {
-    if (!window.confirm("Удалить курс? Связанные уроки могут стать недоступны.")) {
-      return
-    }
+  const confirmDeleteCourse = async () => {
+    if (!deleteCourseId) return
     const fd = new FormData()
-    fd.set("course_id", courseId)
-    startTransition(async () => {
-      const result = await deleteCourseAction(fd)
-      if (result.error) setError(result.error)
-    })
+    fd.set("course_id", deleteCourseId)
+    const result = await deleteCourseAction(fd)
+    if (result.error) {
+      setError(result.error)
+      throw new Error(result.error)
+    }
+    refresh()
   }
 
   return (
@@ -103,44 +117,66 @@ export const CoursesManager = ({ courses }: CoursesManagerProps) => {
             courses.map((course) => (
               <div
                 key={course.id}
-                className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-3"
+                className="rounded-lg border border-border p-3"
               >
                 <form
                   onSubmit={handleUpdate}
-                  className="flex flex-1 flex-wrap items-end gap-3"
+                  className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-end"
                 >
-                  <input type="hidden" name="course_id" value={course.id} />
-                  <div className="min-w-[160px] flex-1 space-y-1">
-                    <Label className="text-xs">Название</Label>
-                    <Input name="title" defaultValue={course.title} required />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Цвет</Label>
-                    <Input
-                      name="color"
-                      type="color"
-                      defaultValue={course.color}
-                      className="h-9 w-16 cursor-pointer p-1"
-                    />
-                  </div>
-                  <Button type="submit" size="sm" variant="outline" disabled={isPending}>
+                <input type="hidden" name="course_id" value={course.id} />
+                <div className="space-y-1">
+                  <Label className="text-xs">Название</Label>
+                  <Input name="title" defaultValue={course.title} required />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Цвет</Label>
+                  <Input
+                    name="color"
+                    type="color"
+                    defaultValue={course.color}
+                    className="h-8 w-16 cursor-pointer p-1"
+                  />
+                </div>
+                <AdminAlignedButtonCell>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="outline"
+                    className="h-8"
+                    disabled={isPending}
+                  >
                     Сохранить
                   </Button>
+                </AdminAlignedButtonCell>
+                <AdminAlignedButtonCell>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    className="h-8"
+                    disabled={isPending}
+                    onClick={() => setDeleteCourseId(course.id)}
+                  >
+                    Удалить
+                  </Button>
+                </AdminAlignedButtonCell>
                 </form>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  disabled={isPending}
-                  onClick={() => handleDelete(course.id)}
-                >
-                  Удалить
-                </Button>
               </div>
             ))
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={deleteCourseId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteCourseId(null)
+        }}
+        title="Удалить курс?"
+        description="Курс будет удалён. Связанные уроки могут стать недоступны."
+        confirmLabel="Удалить"
+        onConfirm={confirmDeleteCourse}
+      />
     </div>
   )
 }

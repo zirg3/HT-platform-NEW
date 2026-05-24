@@ -1,0 +1,10 @@
+@import "./styles/globals.css";
+
+:root {
+  --font-sans: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono", ui-monospace, monospace;
+}
+
+html {
+  font-family: var(--font-sans);
+}

@@ -38,7 +38,7 @@ export const AgendaList = ({
         ) : null}
       </div>
       {limited.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-3 py-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-md border border-dashed border-border/60 bg-muted/20 px-3 py-6 text-center text-sm text-muted-foreground">
           Пока пусто
         </p>
       ) : (

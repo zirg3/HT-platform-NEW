@@ -27,7 +27,7 @@ export const AppShellLayout = ({ profile, children }: AppShellLayoutProps) => {
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
-        <div className="glass-main flex min-w-0 flex-1 flex-col overflow-hidden rounded-3xl">
+        <div className="glass-main flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl">
           <AppTopbar
             profile={profile}
             onOpenMenu={() => setSidebarOpen(true)}
