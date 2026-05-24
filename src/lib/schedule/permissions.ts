@@ -10,6 +10,7 @@ export const getSchedulePermissions = (profile: Profile): SchedulePermissions =>
         canEdit: true,
         canCancel: true,
         canComplete: true,
+        canReschedule: true,
         teacherId: profile.id,
       }
     case "student":
@@ -18,6 +19,7 @@ export const getSchedulePermissions = (profile: Profile): SchedulePermissions =>
         canEdit: false,
         canCancel: true,
         canComplete: false,
+        canReschedule: false,
       }
     case "manager":
     case "admin":
@@ -26,6 +28,8 @@ export const getSchedulePermissions = (profile: Profile): SchedulePermissions =>
         canEdit: true,
         canCancel: true,
         canComplete: true,
+        canReschedule: true,
+        teacherId: profile.is_teacher ? profile.id : undefined,
       }
     default:
       return {
@@ -33,6 +37,19 @@ export const getSchedulePermissions = (profile: Profile): SchedulePermissions =>
         canEdit: false,
         canCancel: false,
         canComplete: false,
+        canReschedule: false,
       }
   }
 }
+
+export const canRescheduleLesson = (
+  profile: Profile,
+  lessonTeacherId: string
+) => {
+  if (profile.role === "admin" || profile.role === "manager") return true
+  if (profile.role === "teacher") return profile.id === lessonTeacherId
+  return false
+}
+
+export const canCompleteLessonNow = (startsAtIso: string) =>
+  new Date() >= new Date(startsAtIso)

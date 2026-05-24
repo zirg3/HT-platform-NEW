@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import {
   assignStudentTeacherAction,
   removeAssignmentAction,
+  updateAssignmentAction,
 } from "@/app/actions/assignments"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -41,6 +42,7 @@ export const AssignmentsManager = ({
 }: AssignmentsManagerProps) => {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | undefined>()
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const handleAssign = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -53,6 +55,16 @@ export const AssignmentsManager = ({
     })
   }
 
+  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setError(undefined)
+    startTransition(async () => {
+      const result = await updateAssignmentAction(new FormData(e.currentTarget))
+      if (result.error) setError(result.error)
+      else setEditingId(null)
+    })
+  }
+
   const handleRemove = (assignmentId: string) => {
     if (!window.confirm("Удалить привязку ученика и преподавателя?")) {
       return
@@ -62,6 +74,7 @@ export const AssignmentsManager = ({
     startTransition(async () => {
       const result = await removeAssignmentAction(fd)
       if (result.error) setError(result.error)
+      else if (editingId === assignmentId) setEditingId(null)
     })
   }
 
@@ -126,30 +139,107 @@ export const AssignmentsManager = ({
       <Card>
         <CardHeader>
           <CardTitle>Привязки ({links.length})</CardTitle>
+          <CardDescription>
+            Можно изменить ученика или преподавателя без удаления связи
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           {links.length === 0 ? (
             <p className="text-sm text-muted-foreground">Пока нет привязок</p>
           ) : (
             links.map((link) => (
               <div
                 key={link.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm"
+                className="rounded-lg border border-border p-3 text-sm"
               >
-                <span>
-                  <span className="font-medium">{displayName(link.student)}</span>
-                  <span className="text-muted-foreground"> → </span>
-                  <span className="font-medium">{displayName(link.teacher)}</span>
-                </span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  disabled={isPending}
-                  onClick={() => handleRemove(link.id)}
-                >
-                  Удалить
-                </Button>
+                {editingId === link.id ? (
+                  <form
+                    onSubmit={handleUpdate}
+                    className="flex flex-wrap items-end gap-3"
+                  >
+                    <input
+                      type="hidden"
+                      name="assignment_id"
+                      value={link.id}
+                    />
+                    <div className="min-w-[160px] flex-1 space-y-1">
+                      <Label>Ученик</Label>
+                      <select
+                        name="student_id"
+                        className={selectClassName}
+                        defaultValue={link.student_id}
+                        required
+                        disabled={isPending}
+                      >
+                        {students.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {displayName(s)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="min-w-[160px] flex-1 space-y-1">
+                      <Label>Преподаватель</Label>
+                      <select
+                        name="teacher_id"
+                        className={selectClassName}
+                        defaultValue={link.teacher_id}
+                        required
+                        disabled={isPending}
+                      >
+                        {teachers.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {displayName(t)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <Button type="submit" size="sm" disabled={isPending}>
+                      Сохранить
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={isPending}
+                      onClick={() => setEditingId(null)}
+                    >
+                      Отмена
+                    </Button>
+                  </form>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      <span className="font-medium">
+                        {displayName(link.student)}
+                      </span>
+                      <span className="text-muted-foreground"> → </span>
+                      <span className="font-medium">
+                        {displayName(link.teacher)}
+                      </span>
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={isPending}
+                        onClick={() => setEditingId(link.id)}
+                      >
+                        Изменить
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        disabled={isPending}
+                        onClick={() => handleRemove(link.id)}
+                      >
+                        Удалить
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))
           )}

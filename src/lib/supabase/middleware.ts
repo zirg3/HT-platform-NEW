@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { supabaseFetch } from "@/lib/supabase/fetch"
 
 const PUBLIC_PATHS = ["/login", "/auth"]
 
@@ -16,6 +17,9 @@ export const updateSession = async (request: NextRequest) => {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: {
+        fetch: supabaseFetch,
+      },
       cookies: {
         getAll() {
           return request.cookies.getAll()

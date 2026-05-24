@@ -14,6 +14,7 @@ supabase db push
 | 2 | `migrations/20260517130000_student_cancel_lesson.sql` |
 | 3 | `migrations/20260517130100_staff_lesson_insert.sql` |
 | 4 | `migrations/20260520120000_lesson_meeting_url.sql` — `meeting_url` для онлайн-подключения |
+| 5 | `migrations/20260521120000_v11_lessons_profiles.sql` — v1.1: `is_teacher`, причина отмены, поля переноса |
 
 
 ## Первый администратор

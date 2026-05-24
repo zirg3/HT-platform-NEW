@@ -1,82 +1,55 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
 import {
-  formatLessonTime,
-  getLessonTopPercent,
-} from "@/lib/schedule/dates"
-import { formatCancellationSummary } from "@/lib/schedule/cancel-info"
+  formatCancellationSummary,
+  formatRescheduleSummary,
+} from "@/lib/schedule/cancel-info"
+import { getLessonTopPercent } from "@/lib/schedule/dates"
+import { getLessonAppearance } from "@/lib/schedule/lesson-appearance"
 import type { LessonRow } from "@/lib/schedule/types"
+import { CalendarLessonCard } from "@/components/schedule/compact-lesson-card"
 
 type LessonBlockProps = {
   lesson: LessonRow
+  context: "student" | "teacher"
   onSelect: (lesson: LessonRow) => void
 }
 
-export const LessonBlock = ({ lesson, onSelect }: LessonBlockProps) => {
+export const LessonBlock = ({ lesson, context, onSelect }: LessonBlockProps) => {
   const { top, height } = getLessonTopPercent(
     lesson.starts_at,
     lesson.duration_minutes
   )
-  const isCancelled = lesson.status === "cancelled"
-  const isCompleted = lesson.status === "completed"
-  const courseColor = lesson.courses?.color ?? "#64748b"
-  const student = lesson.lesson_participants[0]?.profiles
+  const appearance = getLessonAppearance(lesson)
   const title = lesson.courses?.title ?? "Без курса"
   const cancelHint = formatCancellationSummary(lesson)
-  const nativeTitle = cancelHint ?? undefined
-  const ariaLabel = cancelHint
-    ? `Урок ${title}, ${formatLessonTime(lesson.starts_at)}, ${cancelHint}`
-    : `Урок ${title}, ${formatLessonTime(lesson.starts_at)}`
+  const rescheduleHint = formatRescheduleSummary(lesson)
+  const nativeTitle = [cancelHint, rescheduleHint].filter(Boolean).join(" · ")
+  const ariaLabel = `${appearance.label}: ${title}`
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault()
-      onSelect(lesson)
-    }
-  }
+  const studentId = lesson.lesson_participants[0]?.profile_id
+  const studentProfileHref =
+    context === "teacher" && studentId
+      ? `/teacher/students/${studentId}`
+      : null
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(lesson)}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        "absolute right-0.5 left-0.5 z-10 overflow-hidden rounded-md border px-1.5 py-1 text-left text-xs shadow-sm transition-opacity",
-        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-        isCancelled && "opacity-60"
-      )}
+    <div
+      className="absolute inset-x-0.5 z-10 min-h-0 max-h-full overflow-hidden rounded-md"
       style={{
         top: `${top}%`,
         height: `${height}%`,
-        borderColor: courseColor,
-        backgroundColor: `${courseColor}22`,
       }}
+      title={nativeTitle || undefined}
       aria-label={ariaLabel}
-      title={nativeTitle}
     >
-      <p
-        className={cn(
-          "truncate font-medium",
-          isCancelled && "line-through"
-        )}
-      >
-        {title}
-      </p>
-      <p className="truncate text-muted-foreground">
-        {formatLessonTime(lesson.starts_at)} · {student?.full_name || "—"}
-      </p>
-      {isCancelled ? (
-        <Badge variant="secondary" className="mt-0.5 h-4 px-1 text-[10px]">
-          Отменён
-        </Badge>
-      ) : null}
-      {isCompleted ? (
-        <Badge variant="outline" className="mt-0.5 h-4 px-1 text-[10px]">
-          Проведён
-        </Badge>
-      ) : null}
-    </button>
+      <CalendarLessonCard
+        lesson={lesson}
+        context={context}
+        studentProfileHref={studentProfileHref}
+        onOpenLesson={() => onSelect(lesson)}
+        className="h-full"
+      />
+    </div>
   )
 }

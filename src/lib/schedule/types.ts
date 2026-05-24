@@ -30,6 +30,10 @@ export type LessonRow = {
   recurrence_group_id: string | null
   cancelled_at: string | null
   cancelled_by: string | null
+  cancellation_reason: string | null
+  rescheduled_at: string | null
+  rescheduled_by: string | null
+  original_starts_at: string | null
   cancelled_by_profile: ProfileBrief | null
   courses: CourseRow | null
   teacher: ProfileBrief | null
@@ -54,5 +58,6 @@ export type SchedulePermissions = {
   canEdit: boolean
   canCancel: boolean
   canComplete: boolean
+  canReschedule: boolean
   teacherId?: string
 }

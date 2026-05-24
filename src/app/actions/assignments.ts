@@ -41,6 +41,42 @@ export const assignStudentTeacherAction = async (
   return {}
 }
 
+export const updateAssignmentAction = async (
+  formData: FormData
+): Promise<AssignmentActionResult> => {
+  await requireStaff()
+
+  const assignmentId = String(formData.get("assignment_id") ?? "").trim()
+  const studentId = String(formData.get("student_id") ?? "").trim()
+  const teacherId = String(formData.get("teacher_id") ?? "").trim()
+
+  if (!assignmentId) return { error: "Привязка не указана" }
+  if (!studentId || !teacherId) {
+    return { error: "Выберите ученика и преподавателя" }
+  }
+  if (studentId === teacherId) {
+    return { error: "Ученик и преподаватель должны различаться" }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("student_teacher")
+    .update({ student_id: studentId, teacher_id: teacherId })
+    .eq("id", assignmentId)
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Такая привязка уже существует" }
+    }
+    return { error: error.message }
+  }
+
+  revalidatePath("/admin/assignments")
+  revalidatePath("/manager/assignments")
+  revalidatePath("/teacher/students")
+  return {}
+}
+
 export const removeAssignmentAction = async (
   formData: FormData
 ): Promise<AssignmentActionResult> => {

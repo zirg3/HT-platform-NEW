@@ -14,9 +14,9 @@ export default async function Home() {
   }
 
   return (
-    <div className="flex flex-1 flex-col bg-muted/20">
-      <header className="border-b border-border bg-card px-6 py-4">
-        <p className="text-sm font-medium text-muted-foreground">{SITE_NAME}</p>
+    <div className="aurora-bg flex flex-1 flex-col">
+      <header className="glass-topbar px-6 py-4">
+        <p className="text-sm font-semibold text-foreground">{SITE_NAME}</p>
         <p className="text-xs text-muted-foreground">MVP · вход и роли</p>
       </header>
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-6 py-16">
